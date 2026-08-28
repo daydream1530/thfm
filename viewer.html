@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>전용 PDF 리더기</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <style>
+        body {
+            margin: 0; background-color: #333; color: white;
+            display: flex; flex-direction: column; align-items: center;
+            font-family: sans-serif;
+        }
+        #toolbar {
+            background-color: #222; width: 100%; padding: 15px;
+            text-align: center; position: sticky; top: 0;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.5); z-index: 100;
+        }
+        button {
+            background: #555; color: white; border: none; padding: 8px 15px;
+            margin: 0 10px; cursor: pointer; border-radius: 4px; font-weight: bold;
+        }
+        button:hover { background: #777; }
+        #pdf-render { margin-top: 20px; box-shadow: 0 0 15px rgba(0,0,0,0.8); background: white; }
+        .back-btn { background: #0366d6; position: absolute; left: 15px; }
+        .back-btn:hover { background: #0052a3; }
+    </style>
+</head>
+<body>
+    <div id="toolbar">
+        <button class="back-btn" onclick="location.href='index.html'">목록으로</button>
+        <button id="prev-page">◀ 이전</button>
+        <span id="page-info">페이지 <span id="page-num"></span> / <span id="page-count"></span></span>
+        <button id="next-page">다음 ▶</button>
+    </div>
+
+    <canvas id="pdf-render"></canvas>
+
+    <script>
+        // 1. URL에서 파일 이름 가져오기 (?file=파일명)
+        const urlParams = new URLSearchParams(window.location.search);
+        const pdfName = urlParams.get('file');
+
+        if (!pdfName) {
+            alert("열람할 PDF 파일이 지정되지 않았습니다.");
+            location.href = 'index.html';
+        } else {
+            // 2. PDF.js 설정 및 워커 연결
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+            let pdfDoc = null,
+                pageNum = 1,
+                pageIsRendering = false,
+                pageNumIsPending = null;
+
+            const scale = 1.5, // 화면 확대 비율 (원하는 대로 조절 가능)
+                  canvas = document.getElementById('pdf-render'),
+                  ctx = canvas.getContext('2d');
+
+            // 3. 페이지 렌더링 함수
+            const renderPage = num => {
+                pageIsRendering = true;
+                pdfDoc.getPage(num).then(page => {
+                    const viewport = page.getViewport({ scale });
+                    canvas.height = viewport.height;
+                    canvas.width = viewport.width;
+
+                    const renderCtx = { canvasContext: ctx, viewport: viewport };
+                    page.render(renderCtx).promise.then(() => {
+                        pageIsRendering = false;
+                        if (pageNumIsPending !== null) {
+                            renderPage(pageNumIsPending);
+                            pageNumIsPending = null;
+                        }
+                    });
+                    document.getElementById('page-num').textContent = num;
+                });
+            };
+
+            const queueRenderPage = num => {
+                if (pageIsRendering) { pageNumIsPending = num; } 
+                else { renderPage(num); }
+            };
+
+            // 4. 버튼 이벤트 설정
+            document.getElementById('prev-page').addEventListener('click', () => {
+                if (pageNum <= 1) return;
+                pageNum--;
+                queueRenderPage(pageNum);
+            });
+
+            document.getElementById('next-page').addEventListener('click', () => {
+                if (pageNum >= pdfDoc.numPages) return;
+                pageNum++;
+                queueRenderPage(pageNum);
+            });
+
+            // 5. 지정된 PDF 문서 불러오기
+            pdfjsLib.getDocument(pdfName).promise.then(pdfDoc_ => {
+                pdfDoc = pdfDoc_;
+                document.getElementById('page-count').textContent = pdfDoc.numPages;
+                renderPage(pageNum);
+            }).catch(err => {
+                alert("PDF를 불러오는 중 오류가 발생했습니다. 파일 이름을 확인해주세요.");
+            });
+        }
+    </script>
+</body>
+</html>
