@@ -5,20 +5,60 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>세대 매뉴얼</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; background-color: #f4f4f9; }
-        h1 { color: #333; border-bottom: 2px solid #ddd; padding-bottom: 10px; }
-        .pdf-list { list-style: none; padding: 0; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; background-color: #f4f4f9; margin: 0; }
+        h1 { color: #333; border-bottom: 2px solid #ddd; padding-bottom: 10px; font-size: 24px; text-align: center; }
+        .pdf-list { list-style: none; padding: 0; margin-top: 20px; }
         .pdf-list li { margin-bottom: 15px; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        .pdf-list a { text-decoration: none; color: #0366d6; font-size: 18px; font-weight: bold; display: block; }
+        .pdf-list a { text-decoration: none; color: #0366d6; font-size: 16px; font-weight: bold; display: block; word-break: break-all; }
         .pdf-list a:hover { color: #0052a3; text-decoration: underline; }
+        #loading { text-align: center; color: #666; margin-top: 20px; }
     </style>
 </head>
 <body>
-    <h1>세대 매뉴얼</h1>
-    <ul class="pdf-list">
-        <li><a href="viewer.html?file=1. 월패드 매뉴얼.pdf">📄 1. 월패드 매뉴얼</a></li>
-        <li><a href="viewer.html?file=2. 도어락 매뉴얼.pdf">📄 2. 도어락 매뉴얼</a></li>
-        <li><a href="viewer.html?file=3. 스마트폰키 매뉴얼.pdf">📄 3. 스마트폰키 매뉴얼</a></li>
-    </ul>
+    <h1>📚 세대 매뉴얼</h1>
+    <div id="loading">PDF 목록을 불러오는 중입니다...</div>
+    <ul class="pdf-list" id="pdf-list"></ul>
+
+    <script>
+        const GITHUB_ID = 'daydream1530'; 
+        const REPO_NAME = 'thfm'; 
+        const FOLDER_NAME = 'pdfs';
+
+        const listElement = document.getElementById('pdf-list');
+        const loadingElement = document.getElementById('loading');
+
+        // GitHub API를 이용해 폴더 내의 파일 목록을 가져옵니다.
+        fetch(`https://api.github.com/repos/${GITHUB_ID}/${REPO_NAME}/contents/${FOLDER_NAME}`)
+            .then(response => {
+                if (!response.ok) throw new Error('폴더를 찾을 수 없거나 접근할 수 없습니다.');
+                return response.json();
+            })
+            .then(data => {
+                loadingElement.style.display = 'none';
+                
+                // 파일 목록 중 .pdf로 끝나는 파일만 골라냅니다.
+                const pdfFiles = data.filter(file => file.name.toLowerCase().endsWith('.pdf'));
+
+                if (pdfFiles.length === 0) {
+                    listElement.innerHTML = '<li>업로드된 PDF 파일이 없습니다.</li>';
+                    return;
+                }
+
+                // 자동으로 리스트(li) 태그를 생성합니다.
+                pdfFiles.forEach(file => {
+                    const li = document.createElement('li');
+                    const a = document.createElement('a');
+                    // 뷰어에 파일 경로(pdfs/파일명.pdf)를 통째로 넘겨줍니다.
+                    a.href = `viewer.html?file=${FOLDER_NAME}/${encodeURIComponent(file.name)}`;
+                    a.textContent = `📄 ${file.name}`;
+                    li.appendChild(a);
+                    listElement.appendChild(li);
+                });
+            })
+            .catch(error => {
+                loadingElement.textContent = "목록을 불러오는데 실패했습니다. 깃허브 아이디와 리포지토리 명을 확인하세요.";
+                console.error(error);
+            });
+    </script>
 </body>
 </html>
