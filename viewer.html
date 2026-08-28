@@ -2,20 +2,21 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- user-scalable=no 를 삭제하여 핀치 줌(확대 제스처) 허용 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PDF 뷰어</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <style>
         body {
             margin: 0; padding: 0; background-color: #333; color: white;
-            display: flex; flex-direction: column; align-items: center;
-            font-family: sans-serif; overflow-x: hidden;
+            font-family: sans-serif;
+            /* overflow-x: hidden; 을 삭제하여 줌 인 했을 때 좌우로 스크롤 가능하게 함 */
         }
         
-        /* 툴바 모바일 레이아웃 최적화 */
+        /* 툴바가 줌인해도 항상 화면 상단에 잘 고정되도록 수정 */
         #toolbar {
             background-color: #222; width: 100%; padding: 10px 5px;
-            position: sticky; top: 0; z-index: 100;
+            position: fixed; top: 0; left: 0; z-index: 100;
             display: flex; justify-content: space-between; align-items: center;
             box-sizing: border-box; box-shadow: 0 2px 5px rgba(0,0,0,0.5);
         }
@@ -29,15 +30,22 @@
         button:active { background: #777; }
         .back-btn { background: #0366d6; }
         
-        /* 드롭다운 메뉴 스타일 */
         #page-select {
             background: #444; color: white; border: 1px solid #666;
             padding: 8px 10px; border-radius: 4px; font-size: 14px;
             cursor: pointer; text-align: center;
         }
 
+        /* 툴바에 캔버스가 가려지지 않도록 상단 여백 추가 */
+        #pdf-container {
+            margin-top: 55px;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+        }
+
         #pdf-render { 
-            width: 100vw !important; 
+            width: 100% !important; 
             height: auto !important;
             background: white; display: block;
         }
@@ -46,16 +54,17 @@
 <body>
     <div id="toolbar">
         <button class="back-btn" onclick="location.href='index.html'">목록</button>
-        
         <div class="nav-group">
             <button id="prev-page">◀</button>
-            <!-- 페이지 번호를 누르면 펼쳐지는 드롭다운 -->
             <select id="page-select"></select>
             <button id="next-page">▶</button>
         </div>
     </div>
 
-    <canvas id="pdf-render"></canvas>
+    <!-- 캔버스를 감싸는 컨테이너 추가 -->
+    <div id="pdf-container">
+        <canvas id="pdf-render"></canvas>
+    </div>
 
     <script>
         const urlParams = new URLSearchParams(window.location.search);
@@ -76,7 +85,6 @@
                   ctx = canvas.getContext('2d'),
                   pageSelect = document.getElementById('page-select');
 
-            // 드롭다운 메뉴에 페이지 번호 채워넣기
             const setupDropdown = (totalPages) => {
                 pageSelect.innerHTML = '';
                 for (let i = 1; i <= totalPages; i++) {
@@ -86,7 +94,6 @@
                     pageSelect.appendChild(option);
                 }
                 
-                // 사용자가 드롭다운에서 페이지를 선택하면 해당 페이지로 이동
                 pageSelect.addEventListener('change', (e) => {
                     pageNum = parseInt(e.target.value);
                     queueRenderPage(pageNum);
@@ -98,7 +105,7 @@
                 pageIsRendering = true;
                 pdfDoc.getPage(num).then(page => {
                     const unscaledViewport = page.getViewport({ scale: 1 });
-                    const scale = window.innerWidth / unscaledViewport.width;
+                    const scale = document.getElementById('pdf-container').clientWidth / unscaledViewport.width;
                     const viewport = page.getViewport({ scale: scale });
                     const outputScale = window.devicePixelRatio || 1;
                     
@@ -116,7 +123,6 @@
                         }
                     });
                     
-                    // 현재 렌더링된 페이지 번호로 드롭다운 메뉴 값 업데이트
                     pageSelect.value = num;
                 });
             };
@@ -140,12 +146,19 @@
                 window.scrollTo(0, 0);
             });
 
-            window.addEventListener('resize', () => { if (pdfDoc) renderPage(pageNum); });
+            // 💡 핵심 버그 수정 파트
+            let currentWidth = window.innerWidth;
+            window.addEventListener('resize', () => { 
+                // 가로 폭이 실제로 바뀌었을 때만(가로모드 전환 등) 렌더링을 다시 함
+                // 스크롤로 인한 주소창 사라짐(세로 폭 변화)은 무시하여 리사이즈 버그 방지
+                if (window.innerWidth !== currentWidth) {
+                    currentWidth = window.innerWidth;
+                    if (pdfDoc) renderPage(pageNum); 
+                }
+            });
 
-            // PDF 파일 불러오기
             pdfjsLib.getDocument(pdfName).promise.then(pdfDoc_ => {
                 pdfDoc = pdfDoc_;
-                // PDF를 성공적으로 불러오면 드롭다운 메뉴를 세팅합니다.
                 setupDropdown(pdfDoc.numPages);
                 renderPage(pageNum);
             }).catch(err => {
