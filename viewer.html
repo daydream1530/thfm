@@ -2,50 +2,69 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF 리더기</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PDF 뷰어</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <style>
         body {
-            margin: 0; background-color: #333; color: white;
+            margin: 0; padding: 0; background-color: #333; color: white;
             display: flex; flex-direction: column; align-items: center;
-            font-family: sans-serif;
+            font-family: sans-serif; overflow-x: hidden;
         }
+        
+        /* 툴바 모바일 레이아웃 최적화 */
         #toolbar {
-            background-color: #222; width: 100%; padding: 15px;
-            text-align: center; position: sticky; top: 0;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.5); z-index: 100;
+            background-color: #222; width: 100%; padding: 10px 5px;
+            position: sticky; top: 0; z-index: 100;
+            display: flex; justify-content: space-between; align-items: center;
+            box-sizing: border-box; box-shadow: 0 2px 5px rgba(0,0,0,0.5);
         }
+        
+        .nav-group { display: flex; align-items: center; gap: 5px; }
+
         button {
-            background: #555; color: white; border: none; padding: 8px 15px;
-            margin: 0 10px; cursor: pointer; border-radius: 4px; font-weight: bold;
+            background: #555; color: white; border: none; padding: 8px 12px;
+            cursor: pointer; border-radius: 4px; font-weight: bold; font-size: 14px;
         }
-        button:hover { background: #777; }
-        #pdf-render { margin-top: 20px; box-shadow: 0 0 15px rgba(0,0,0,0.8); background: white; }
-        .back-btn { background: #0366d6; position: absolute; left: 15px; }
-        .back-btn:hover { background: #0052a3; }
+        button:active { background: #777; }
+        .back-btn { background: #0366d6; }
+        
+        /* 드롭다운 메뉴 스타일 */
+        #page-select {
+            background: #444; color: white; border: 1px solid #666;
+            padding: 8px 10px; border-radius: 4px; font-size: 14px;
+            cursor: pointer; text-align: center;
+        }
+
+        #pdf-render { 
+            width: 100vw !important; 
+            height: auto !important;
+            background: white; display: block;
+        }
     </style>
 </head>
 <body>
     <div id="toolbar">
-        <button class="back-btn" onclick="location.href='index.html'">목록으로</button>
-        <button id="prev-page">◀ 이전</button>
-        <span id="page-info">페이지 <span id="page-num"></span> / <span id="page-count"></span></span>
-        <button id="next-page">다음 ▶</button>
+        <button class="back-btn" onclick="location.href='index.html'">목록</button>
+        
+        <div class="nav-group">
+            <button id="prev-page">◀</button>
+            <!-- 페이지 번호를 누르면 펼쳐지는 드롭다운 -->
+            <select id="page-select"></select>
+            <button id="next-page">▶</button>
+        </div>
     </div>
 
     <canvas id="pdf-render"></canvas>
 
     <script>
-        // 1. URL에서 파일 이름 가져오기 (?file=파일명)
         const urlParams = new URLSearchParams(window.location.search);
         const pdfName = urlParams.get('file');
 
         if (!pdfName) {
-            alert("열람할 PDF 파일이 지정되지 않았습니다.");
+            alert("파일이 지정되지 않았습니다.");
             location.href = 'index.html';
         } else {
-            // 2. PDF.js 설정 및 워커 연결
             pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
             let pdfDoc = null,
@@ -53,19 +72,42 @@
                 pageIsRendering = false,
                 pageNumIsPending = null;
 
-            const scale = 1.5, // 화면 확대 비율 (원하는 대로 조절 가능)
-                  canvas = document.getElementById('pdf-render'),
-                  ctx = canvas.getContext('2d');
+            const canvas = document.getElementById('pdf-render'),
+                  ctx = canvas.getContext('2d'),
+                  pageSelect = document.getElementById('page-select');
 
-            // 3. 페이지 렌더링 함수
+            // 드롭다운 메뉴에 페이지 번호 채워넣기
+            const setupDropdown = (totalPages) => {
+                pageSelect.innerHTML = '';
+                for (let i = 1; i <= totalPages; i++) {
+                    let option = document.createElement('option');
+                    option.value = i;
+                    option.text = `${i} / ${totalPages} 쪽`;
+                    pageSelect.appendChild(option);
+                }
+                
+                // 사용자가 드롭다운에서 페이지를 선택하면 해당 페이지로 이동
+                pageSelect.addEventListener('change', (e) => {
+                    pageNum = parseInt(e.target.value);
+                    queueRenderPage(pageNum);
+                    window.scrollTo(0, 0);
+                });
+            };
+
             const renderPage = num => {
                 pageIsRendering = true;
                 pdfDoc.getPage(num).then(page => {
-                    const viewport = page.getViewport({ scale });
-                    canvas.height = viewport.height;
-                    canvas.width = viewport.width;
+                    const unscaledViewport = page.getViewport({ scale: 1 });
+                    const scale = window.innerWidth / unscaledViewport.width;
+                    const viewport = page.getViewport({ scale: scale });
+                    const outputScale = window.devicePixelRatio || 1;
+                    
+                    canvas.width = Math.floor(viewport.width * outputScale);
+                    canvas.height = Math.floor(viewport.height * outputScale);
+                    const transform = outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : null;
 
-                    const renderCtx = { canvasContext: ctx, viewport: viewport };
+                    const renderCtx = { canvasContext: ctx, viewport: viewport, transform: transform };
+                    
                     page.render(renderCtx).promise.then(() => {
                         pageIsRendering = false;
                         if (pageNumIsPending !== null) {
@@ -73,7 +115,9 @@
                             pageNumIsPending = null;
                         }
                     });
-                    document.getElementById('page-num').textContent = num;
+                    
+                    // 현재 렌더링된 페이지 번호로 드롭다운 메뉴 값 업데이트
+                    pageSelect.value = num;
                 });
             };
 
@@ -82,26 +126,30 @@
                 else { renderPage(num); }
             };
 
-            // 4. 버튼 이벤트 설정
             document.getElementById('prev-page').addEventListener('click', () => {
                 if (pageNum <= 1) return;
                 pageNum--;
                 queueRenderPage(pageNum);
+                window.scrollTo(0, 0);
             });
 
             document.getElementById('next-page').addEventListener('click', () => {
                 if (pageNum >= pdfDoc.numPages) return;
                 pageNum++;
                 queueRenderPage(pageNum);
+                window.scrollTo(0, 0);
             });
 
-            // 5. 지정된 PDF 문서 불러오기
+            window.addEventListener('resize', () => { if (pdfDoc) renderPage(pageNum); });
+
+            // PDF 파일 불러오기
             pdfjsLib.getDocument(pdfName).promise.then(pdfDoc_ => {
                 pdfDoc = pdfDoc_;
-                document.getElementById('page-count').textContent = pdfDoc.numPages;
+                // PDF를 성공적으로 불러오면 드롭다운 메뉴를 세팅합니다.
+                setupDropdown(pdfDoc.numPages);
                 renderPage(pageNum);
             }).catch(err => {
-                alert("PDF를 불러오는 중 오류가 발생했습니다. 파일 이름을 확인해주세요.");
+                alert("파일을 찾을 수 없습니다. (폴더나 파일명을 확인하세요)");
             });
         }
     </script>
