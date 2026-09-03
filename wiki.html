@@ -159,6 +159,7 @@
     .toc-title { font-weight: bold; text-align: center; margin-bottom: 8px; border-bottom: 1px solid #eee; padding-bottom: 4px; }
     .toc-list { list-style: none; padding-left: 0; font-size: 0.92rem; }
     .toc-list li { margin: 3px 0; }
+    .toc-list .toc-sub { padding-left: 15px; }
     .wiki-h1, .wiki-h2, .wiki-h3, .wiki-h4 { font-weight: 700; border-bottom: 1px solid #ccc; margin-top: 30px; margin-bottom: 12px; padding-bottom: 4px; color: #111; }
     .wiki-h1 { font-size: 1.6rem; border-bottom: 2px solid var(--namu-green); }
     .wiki-h2 { font-size: 1.35rem; }
@@ -172,9 +173,11 @@
     ul.wiki-list ul.wiki-list { list-style-type: disc; margin: 2px 0 2px 0; }
     blockquote { margin: 14px 0; padding: 10px 18px; background-color: #fdfdfd; border-left: 5px solid var(--namu-green); color: #555; }
     hr { border: 0; height: 1px; background: #ccc; margin: 20px 0; }
+    
     table.wiki-table { border-collapse: collapse; margin: 15px 0; width: 100%; border: 1px solid #ccc; font-size: 0.93rem; }
     table.wiki-table td, table.wiki-table th { border: 1px solid #ccc; padding: 8px 12px; text-align: left; }
     table.wiki-table tr:first-child td { background-color: var(--namu-green); color: white; font-weight: bold; }
+    
     code.wiki-code { background-color: #f1f3f5; color: #e03131; padding: 2px 5px; border-radius: 3px; font-family: Consolas, monospace; font-size: 0.9em; }
     sup.footnote-ref a { font-size: 0.75rem; font-weight: bold; padding: 0 2px; }
     .footnotes-section { margin-top: 40px; padding-top: 15px; border-top: 2px solid #ccc; font-size: 0.88rem; }
@@ -454,6 +457,8 @@
       text = text.replace(/__(.*?)__/g, '$1');
       text = text.replace(/\^\^(.*?)\^\^/g, '$1');
       text = text.replace(/,,(.*?),,/g, '$1');
+      // ★ <br>이나 [[br]] 등 줄바꿈 기호도 목차에서는 공백으로 치환
+      text = text.replace(/\[\[[bB][rR]\]\]|<br\s*\/?>/gi, ' ');
       return text;
     }
 
@@ -485,6 +490,9 @@
 
       function parseInline(text) {
         text = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+        // ★ 줄바꿈 문법 ([[br]], [[BR]]) 치환
+        text = text.replace(/\[\[[bB][rR]\]\]/g, '<br>');
 
         text = text.replace(/\{\{\{([^+ -#][\s\S]*?)\}\}\}/g, '<code class="wiki-code">$1</code>');
         text = text.replace(/\{\{\{#([a-zA-Z0-9]+)\s+(.*?)\}\}\}/g, (match, colorInfo, content) => {
@@ -573,11 +581,39 @@
           continue;
         }
 
+        // ★ 테이블(표) 처리 개선: 셀 병합(rowspan, colspan) 문법 반영
         if (line.trim().startsWith('||') && line.trim().endsWith('||')) {
           if (!inTable) { html += '<table class="wiki-table">'; inTable = true; }
-          let cells = line.trim().slice(2, -2).split('||');
+          
+          let cellsText = line.trim().slice(2, -2);
+          let cells = cellsText.split('||');
+          
           html += '<tr>';
-          cells.forEach(cell => { html += `<td>${parseInline(cell.trim())}</td>`; });
+          cells.forEach(cell => {
+            let innerText = cell.trim();
+            let rowSpan = 1;
+            let colSpan = 1;
+
+            // 행 병합 <|숫자> 추출
+            let rsMatch = innerText.match(/^<\|(\d+)>\s*(.*)$/);
+            if (rsMatch) {
+              rowSpan = parseInt(rsMatch[1], 10);
+              innerText = rsMatch[2];
+            }
+
+            // 열 병합 <-숫자> 추출
+            let csMatch = innerText.match(/^<-(\d+)>\s*(.*)$/);
+            if (csMatch) {
+              colSpan = parseInt(csMatch[1], 10);
+              innerText = csMatch[2];
+            }
+
+            let attrs = '';
+            if (rowSpan > 1) attrs += ` rowspan="${rowSpan}"`;
+            if (colSpan > 1) attrs += ` colspan="${colSpan}"`;
+
+            html += `<td${attrs}>${parseInline(innerText)}</td>`;
+          });
           html += '</tr>';
           continue;
         } else if (inTable) {
@@ -618,12 +654,11 @@
       if (inTable) { html += '</table>'; }
       closeLists();
 
-      // ★ 수정된 부분: 하위 항목 들여쓰기 (margin-left를 동적으로 부여)
       let tocHtml = '';
       if (toc.length > 0) {
         tocHtml += '<div class="toc-box" id="toc-box"><div class="toc-title">목차</div><ul class="toc-list">';
         toc.forEach(item => {
-          let indentPx = (item.level - 1) * 20; // 1단계는 0px, 2단계는 20px, 3단계는 40px...
+          let indentPx = (item.level - 1) * 20; 
           tocHtml += `<li style="margin-left: ${indentPx}px;"><a href="#${item.anchorId}" onclick="event.preventDefault(); document.getElementById('${item.anchorId}')?.scrollIntoView({behavior: 'smooth'})">${item.numStr}. ${item.title}</a></li>`;
         });
         tocHtml += '</ul></div>';
