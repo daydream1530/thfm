@@ -26,14 +26,14 @@
       padding: 0 20px;
       display: flex;
       align-items: center;
-      justify-content: space-between; /* 우측 정렬(flex-end)에서 양쪽 정렬로 변경 */
+      justify-content: space-between; /* 양쪽 정렬 */
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
       position: sticky;
       top: 0;
       z-index: 1000;
     }
-    
-    /* 돌아가기 버튼 스타일 추가 */
+
+    /* 돌아가기 버튼 스타일 */
     .back-btn {
       color: white;
       text-decoration: none;
@@ -223,11 +223,13 @@
 <body>
 
   <header>
+    <!-- 돌아가기 버튼 추가됨 -->
     <a href="https://daydream1530.github.io/thfm/" class="back-btn">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
       돌아가기
     </a>
 
+    <!-- 기존 검색창 -->
     <div class="search-box">
       <input type="text" id="searchInput" placeholder="여기에서 검색" autocomplete="off">
       <button onclick="searchDoc()">
@@ -482,7 +484,6 @@
       text = text.replace(/__(.*?)__/g, '$1');
       text = text.replace(/\^\^(.*?)\^\^/g, '$1');
       text = text.replace(/,,(.*?),,/g, '$1');
-      // ★ <br>이나 [[br]] 등 줄바꿈 기호도 목차에서는 공백으로 치환
       text = text.replace(/\[\[[bB][rR]\]\]|<br\s*\/?>/gi, ' ');
       return text;
     }
@@ -516,7 +517,6 @@
       function parseInline(text) {
         text = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-        // ★ 줄바꿈 문법 ([[br]], [[BR]]) 치환
         text = text.replace(/\[\[[bB][rR]\]\]/g, '<br>');
 
         text = text.replace(/\{\{\{([^+ -#][\s\S]*?)\}\}\}/g, '<code class="wiki-code">$1</code>');
@@ -606,7 +606,6 @@
           continue;
         }
 
-        // ★ 테이블(표) 처리 개선: 셀 병합(rowspan, colspan) 문법 반영
         if (line.trim().startsWith('||') && line.trim().endsWith('||')) {
           if (!inTable) { html += '<table class="wiki-table">'; inTable = true; }
           
@@ -619,14 +618,12 @@
             let rowSpan = 1;
             let colSpan = 1;
 
-            // 행 병합 <|숫자> 추출
             let rsMatch = innerText.match(/^<\|(\d+)>\s*(.*)$/);
             if (rsMatch) {
               rowSpan = parseInt(rsMatch[1], 10);
               innerText = rsMatch[2];
             }
 
-            // 열 병합 <-숫자> 추출
             let csMatch = innerText.match(/^<-(\d+)>\s*(.*)$/);
             if (csMatch) {
               colSpan = parseInt(csMatch[1], 10);
