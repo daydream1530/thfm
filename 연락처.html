@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>연락처 관리 시스템</title>
+    <title>연락처</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         :root {
@@ -161,10 +161,9 @@
 <body>
     <div class="container">
         <div class="header-card">
-            <h1 class="header-title">연락처 관리 시스템</h1>
             <div id="status-msg"></div>
             <div class="search-box">
-                <input type="text" id="search-input" class="search-input" placeholder="그룹명, 업체명, 이름, 연락처 또는 비고를 검색하세요...">
+                <input type="text" id="search-input" class="search-input" placeholder="검색">
             </div>
         </div>
 
@@ -174,7 +173,7 @@
     <div id="toast"></div>
 
     <script>
-        const GITHUB_RAW_URL = 'https://cdn.jsdelivr.net/gh/daydream1530/thfm@main/excel/연락처.xlsx';
+        const GITHUB_RAW_URL = 'https://raw.githubusercontent.com/daydream1530/thfm/main/excel/%EC%97%B0%EB%9D%BD%EC%B2%98.xlsx';
 
         window.addEventListener('DOMContentLoaded', async () => {
             const searchInput = document.getElementById('search-input');
