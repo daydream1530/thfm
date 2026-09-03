@@ -159,7 +159,6 @@
     .toc-title { font-weight: bold; text-align: center; margin-bottom: 8px; border-bottom: 1px solid #eee; padding-bottom: 4px; }
     .toc-list { list-style: none; padding-left: 0; font-size: 0.92rem; }
     .toc-list li { margin: 3px 0; }
-    .toc-list .toc-sub { padding-left: 15px; }
     .wiki-h1, .wiki-h2, .wiki-h3, .wiki-h4 { font-weight: 700; border-bottom: 1px solid #ccc; margin-top: 30px; margin-bottom: 12px; padding-bottom: 4px; color: #111; }
     .wiki-h1 { font-size: 1.6rem; border-bottom: 2px solid var(--namu-green); }
     .wiki-h2 { font-size: 1.35rem; }
@@ -313,7 +312,6 @@
           listEl.appendChild(li);
         }
 
-        // 나머지 항목들 렌더링
         allWikiDocs.forEach(docName => {
           if (docName !== '대문') {
             const li = document.createElement('li');
@@ -462,7 +460,6 @@
     function parseNamuWiki(rawText, docName = '') {
       if (docName === '대문' && rawText.includes('[!목록!]')) {
         let listMarkup = '';
-
         let filteredDocs = allWikiDocs.filter(doc => doc !== '대문');
         
         if (filteredDocs.length === 0) {
@@ -621,12 +618,13 @@
       if (inTable) { html += '</table>'; }
       closeLists();
 
+      // ★ 수정된 부분: 하위 항목 들여쓰기 (margin-left를 동적으로 부여)
       let tocHtml = '';
       if (toc.length > 0) {
         tocHtml += '<div class="toc-box" id="toc-box"><div class="toc-title">목차</div><ul class="toc-list">';
         toc.forEach(item => {
-          let indentClass = item.level > 1 ? 'toc-sub' : '';
-          tocHtml += `<li class="${indentClass}"><a href="#${item.anchorId}" onclick="event.preventDefault(); document.getElementById('${item.anchorId}')?.scrollIntoView({behavior: 'smooth'})">${item.numStr}. ${item.title}</a></li>`;
+          let indentPx = (item.level - 1) * 20; // 1단계는 0px, 2단계는 20px, 3단계는 40px...
+          tocHtml += `<li style="margin-left: ${indentPx}px;"><a href="#${item.anchorId}" onclick="event.preventDefault(); document.getElementById('${item.anchorId}')?.scrollIntoView({behavior: 'smooth'})">${item.numStr}. ${item.title}</a></li>`;
         });
         tocHtml += '</ul></div>';
       }
