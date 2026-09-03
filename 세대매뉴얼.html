@@ -5,8 +5,44 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>세대 매뉴얼</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; background-color: #f4f4f9; margin: 0; }
-        h1 { color: #333; border-bottom: 2px solid #ddd; padding-bottom: 10px; font-size: 24px; text-align: center; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            padding: 20px; 
+            background-color: #f4f4f9; 
+            margin: 0; 
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        
+        /* 돌아가기 버튼 스타일 추가 */
+        .header-top {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            color: #475569;
+            background-color: #ffffff;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 15px;
+            padding: 8px 14px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            transition: all 0.2s;
+        }
+        .back-btn:hover {
+            background-color: #e2e8f0;
+            color: #0f172a;
+        }
+        .back-btn svg {
+            margin-right: 6px;
+        }
+
+        h1 { color: #333; border-bottom: 2px solid #ddd; padding-bottom: 10px; font-size: 24px; text-align: center; margin-top: 0; }
         .pdf-list { list-style: none; padding: 0; margin-top: 20px; }
         .pdf-list li { margin-bottom: 15px; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         .pdf-list a { text-decoration: none; color: #0366d6; font-size: 16px; font-weight: bold; display: block; word-break: break-all; }
@@ -15,6 +51,14 @@
     </style>
 </head>
 <body>
+    <!-- 상단 돌아가기 버튼 -->
+    <div class="header-top">
+        <a href="https://daydream1530.github.io/thfm/" class="back-btn">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+            돌아가기
+        </a>
+    </div>
+
     <h1>📚 세대 매뉴얼</h1>
     <div id="loading">PDF 목록을 불러오는 중입니다...</div>
     <ul class="pdf-list" id="pdf-list"></ul>
