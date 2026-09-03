@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>연락처 관리 시스템</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --border-color: #e2e8f0;
+            --text-color: #1e293b;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .header-card {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            margin-bottom: 24px;
+            position: sticky;
+            top: 20px;
+            z-index: 100;
+        }
+
+        .header-title {
+            margin-top: 0;
+            margin-bottom: 15px;
+            font-size: 24px;
+            color: #0f172a;
+        }
+
+        .file-input-wrapper {
+            margin-bottom: 15px;
+            font-size: 14px;
+            color: #64748b;
+        }
+
+        .search-box {
+            display: flex;
+            gap: 10px;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 16px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .search-input:focus {
+            border-color: var(--primary-color);
+        }
+
+        .group-section {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .group-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #0f172a;
+            margin-top: 0;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid var(--primary-color);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            background-color: #f1f5f9;
+            font-weight: 600;
+            color: #475569;
+            font-size: 14px;
+        }
+
+        td {
+            font-size: 15px;
+            color: #334155;
+        }
+
+        tr:hover td {
+            background-color: #f8fafc;
+        }
+
+        /* 연락처 클릭용 스타일 추가 */
+        .contact-cell {
+            cursor: pointer;
+            color: var(--primary-color);
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .contact-cell:hover {
+            color: #1d4ed8;
+            text-decoration: underline;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+        
+        #status-msg {
+            color: #dc2626;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+
+        /* 복사 알림 토스트 스타일 */
+        #toast {
+            visibility: hidden;
+            min-width: 250px;
+            background-color: #334155;
+            color: #fff;
+            text-align: center;
+            border-radius: 8px;
+            padding: 16px;
+            position: fixed;
+            z-index: 1000;
+            left: 50%;
+            bottom: 30px;
+            transform: translateX(-50%);
+            font-size: 15px;
+            opacity: 0;
+            transition: opacity 0.3s, bottom 0.3s ease-in-out;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        #toast.show {
+            visibility: visible;
+            opacity: 1;
+            bottom: 50px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header-card">
+            <div class="search-box">
+                <input type="text" id="search-input" class="search-input" placeholder="검색">
+            </div>
+        </div>
+
+        <div id="data-container"></div>
+    </div>
+
+    <div id="toast"></div>
+
+    <script>
+        const GITHUB_RAW_URL = 'https://github.com/daydream1530/thfm/raw/refs/heads/main/excel/연락처.xlsx';
+
+        const excelUpload = document.getElementById('excel-upload');
+        const searchInput = document.getElementById('search-input');
+        const dataContainer = document.getElementById('data-container');
+        const statusMsg = document.getElementById('status-msg');
+
+        // 1. 페이지 로드 시 GitHub에서 엑셀 파일 자동 불러오기
+        window.addEventListener('DOMContentLoaded', async () => {
+            try {
+                statusMsg.style.color = '#2563eb';
+                statusMsg.textContent = "GitHub에서 엑셀 파일을 불러오는 중입니다...";
+
+                const response = await fetch(GITHUB_RAW_URL);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const arrayBuffer = await response.arrayBuffer();
+                const data = new Uint8Array(arrayBuffer);
+                const workbook = XLSX.read(data, { type: 'array' });
+                
+                processWorkbook(workbook);
+                
+                statusMsg.style.color = '#16a34a';
+                statusMsg.textContent = "데이터를 성공적으로 불러왔습니다.";
+                
+                // 성공 시 수동 업로드 영역 숨기기 (원치 않으시면 아래 줄을 지우세요)
+                document.querySelector('.file-input-wrapper').style.display = 'none';
+
+            } catch (error) {
+                console.error("자동 로드 실패:", error);
+                statusMsg.style.color = '#dc2626';
+                statusMsg.innerHTML = "자동 로드 실패: GitHub URL이 정확한지 확인해 주세요. 수동으로 파일을 업로드할 수 있습니다.";
+            }
+        });
+
+        // 2. 수동 엑셀 파일 업로드 (대체 수단)
+        excelUpload.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                processWorkbook(workbook);
+                statusMsg.style.color = '#16a34a';
+                statusMsg.textContent = "수동 업로드 완료!";
+            };
+            reader.readAsArrayBuffer(file);
+        });
+
+        // 워크북 데이터를 JSON으로 변환 후 화면에 그리기
+        function processWorkbook(workbook) {
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
+            const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+            renderData(jsonData);
+        }
+
+        // 3. 데이터를 그룹별로 분류하여 화면에 그리기
+        function renderData(data) {
+            dataContainer.innerHTML = ''; 
+
+            const groupedData = {};
+            data.forEach(row => {
+                const groupName = row['그룹'] || '미분류'; 
+                if (!groupedData[groupName]) {
+                    groupedData[groupName] = [];
+                }
+                groupedData[groupName].push(row);
+            });
+
+            for (const [groupName, items] of Object.entries(groupedData)) {
+                const section = document.createElement('div');
+                section.className = 'group-section';
+
+                const title = document.createElement('h2');
+                title.className = 'group-title';
+                title.textContent = groupName;
+                section.appendChild(title);
+
+                const table = document.createElement('table');
+                table.innerHTML = `
+                    <thead>
+                        <tr>
+                            <th style="width: 20%;">업체</th>
+                            <th style="width: 20%;">이름</th>
+                            <th style="width: 30%;">연락처</th>
+                            <th style="width: 30%;">비고</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                `;
+                
+                const tbody = table.querySelector('tbody');
+
+                items.forEach(item => {
+                    const tr = document.createElement('tr');
+                    tr.className = 'data-row';
+                    const contact = item['연락처1'] || item['연락처'] || '';
+                    
+                    // 업체, 이름, 비고 생성
+                    const tdCompany = document.createElement('td');
+                    tdCompany.textContent = item['업체'] || '';
+                    
+                    const tdName = document.createElement('td');
+                    tdName.textContent = item['이름'] || '';
+
+                    // 연락처 셀 (클릭 이벤트 추가)
+                    const tdContact = document.createElement('td');
+                    tdContact.textContent = contact;
+                    if (contact.trim() !== '') {
+                        tdContact.className = 'contact-cell';
+                        tdContact.title = "클릭하여 복사";
+                        tdContact.onclick = () => copyToClipboard(contact);
+                    }
+
+                    const tdNote = document.createElement('td');
+                    tdNote.textContent = item['비고'] || '';
+
+                    tr.appendChild(tdCompany);
+                    tr.appendChild(tdName);
+                    tr.appendChild(tdContact);
+                    tr.appendChild(tdNote);
+
+                    tbody.appendChild(tr);
+                });
+
+                section.appendChild(table);
+                dataContainer.appendChild(section);
+            }
+        }
+
+        // 4. 실시간 검색 기능 (그룹명 검색 포함)
+        searchInput.addEventListener('input', (event) => {
+            const keyword = event.target.value.toLowerCase().trim();
+            const sections = document.querySelectorAll('.group-section');
+
+            sections.forEach(section => {
+                const groupTitleText = section.querySelector('.group-title').textContent.toLowerCase();
+                const isGroupMatch = groupTitleText.includes(keyword); // 그룹명이 검색어와 일치하는지 확인
+                let hasVisibleRow = false; 
+                
+                const rows = section.querySelectorAll('.data-row');
+
+                rows.forEach(row => {
+                    const rowText = row.textContent.toLowerCase();
+                    
+                    // 그룹명이 일치하거나, 행 내용에 검색어가 포함되어 있으면 표시
+                    if (isGroupMatch || rowText.includes(keyword)) {
+                        row.classList.remove('hidden');
+                        hasVisibleRow = true;
+                    } else {
+                        row.classList.add('hidden');
+                    }
+                });
+
+                // 표시할 행이 있으면 그룹 보이기, 없으면 숨기기
+                if (hasVisibleRow) {
+                    section.classList.remove('hidden');
+                } else {
+                    section.classList.add('hidden');
+                }
+            });
+        });
+
+        // 5. 클립보드 복사 함수 및 알림 토스트 표시
+        function copyToClipboard(text) {
+            if (!text) return;
+            
+            navigator.clipboard.writeText(text).then(() => {
+                showToast(`'${text}' 복사되었습니다.`);
+            }).catch(err => {
+                console.error('복사 실패:', err);
+                showToast('복사에 실패했습니다. 권한을 확인해주세요.');
+            });
+        }
+
+        // 토스트 알림 제어 함수
+        let toastTimeout;
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+            
+            // 기존 타이머가 있으면 초기화
+            if (toastTimeout) {
+                clearTimeout(toastTimeout);
+            }
+            
+            // 3초 후 알림창 숨김
+            toastTimeout = setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
