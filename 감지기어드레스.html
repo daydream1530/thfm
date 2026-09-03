@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>주소설정방법</title>
+<style>
+  * {
+    box-sizing: border-box;
+  }
+  
+  body { 
+    background: #e2e8f0; 
+    display: flex; 
+    flex-direction: column; 
+    align-items: center; 
+    padding: 20px; 
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Malgun Gothic", sans-serif; 
+  }
+  
+  .page { 
+    background: white; 
+    width: 210mm; 
+    height: 297mm; 
+    padding: 12mm 10mm; 
+    margin-bottom: 20px; 
+    box-shadow: 0 4px 10px rgba(0,0,0,0.15); 
+    display: flex; 
+    flex-direction: column; 
+  }
+  
+  h1 { 
+    text-align: center; 
+    font-size: 22px; 
+    font-weight: bold; 
+    margin: 0 0 15px 0; 
+    letter-spacing: 1px; 
+    color: #111;
+  }
+  
+  .grid { 
+    display: grid; 
+    grid-template-columns: repeat(8, 1fr); 
+    grid-template-rows: repeat(16, 1fr); 
+    border-top: 1.5px solid #000; 
+    border-left: 1.5px solid #000; 
+    flex-grow: 1; 
+  }
+  
+  .cell { 
+    border-right: 1.5px solid #000; 
+    border-bottom: 1.5px solid #000; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    gap: 4px; 
+  }
+  
+  .num { 
+    font-size: 11px; 
+    font-weight: 900; 
+    width: 20px; 
+    text-align: right; 
+    color: #222;
+  }
+  
+  .dip { 
+    display: flex; 
+    background: #d1d5db; 
+    border: 1px solid #4b5563; 
+    padding: 1.5px; 
+    border-radius: 2px; 
+  }
+  
+  .switch { 
+    width: 4px; 
+    height: 14px; 
+    margin: 0 1px; 
+    display: flex; 
+    flex-direction: column; 
+    background: white; 
+    border: 1px solid #6b7280; 
+  }
+  
+  /* ★ 방향 완전 수정: ON일 때 아래로(검정), OFF일 때 위로(검정) ★ */
+  .switch.on .top { flex: 1; background: #fff; }
+  .switch.on .bottom { flex: 1; background: #111; }
+  .switch.off .top { flex: 1; background: #111; }
+  .switch.off .bottom { flex: 1; background: #fff; }
+  
+  .empty-cell { 
+    border-right: 1.5px solid #000; 
+    border-bottom: 1.5px solid #000; 
+    background: #f8fafc; 
+  }
+  
+  .footer { 
+    text-align: center; 
+    margin-top: 12px; 
+    font-size: 20px; 
+    font-weight: 900; 
+    font-style: italic; 
+    letter-spacing: 2px; 
+  }
+  
+  @media print {
+    body { background: white; padding: 0; }
+    .page { 
+      box-shadow: none; 
+      margin: 0; 
+      page-break-after: always; 
+      width: 210mm; 
+      height: 297mm; 
+    }
+  }
+</style>
+</head>
+<body>
+<script>
+  function createDip(num) {
+    if (num === null) return '<div class="empty-cell"></div>';
+    
+    let switches = '';
+    // 1, 2, 4, 8, 16, 32, 64, 128
+    for (let i = 0; i < 8; i++) {
+      let isOn = (num & (1 << i)) !== 0;
+      let state = isOn ? 'on' : 'off';
+      switches += `<div class="switch ${state}"><div class="top"></div><div class="bottom"></div></div>`;
+    }
+    
+    let numStr = num < 10 ? '0' + num : num;
+    return `<div class="cell"><div class="num">${numStr}</div><div class="dip">${switches}</div></div>`;
+  }
+
+  function createPage(startNum, totalCells, maxNum) {
+    let html = '<div class="page">';
+    html += '<h1>중계기 및 아날로그 감지기 주소설정방법</h1>';
+    html += '<div class="grid">';
+    
+    for (let i = 0; i < totalCells; i++) {
+      let currentNum = startNum + i;
+      if (currentNum <= maxNum) {
+        html += createDip(currentNum);
+      } else {
+        html += createDip(null);
+      }
+    }
+    
+    html += '</div><div class="footer">DBE</div></div>';
+    return html;
+  }
+
+  // 1페이지 (1~127)
+  document.write(createPage(1, 128, 127));
+  
+  // 2페이지 (128~250)
+  document.write(createPage(128, 128, 250));
+</script>
+</body>
+</html>
