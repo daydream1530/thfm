@@ -12,6 +12,7 @@
             --border-color: #E2E8F0;
             --sunday-color: #FF8080;
             --saturday-color: #80A0FF;
+            --today-bg: #FFFDE7; /* 아주 연한 파스텔톤 노란색 */
         }
 
         body {
@@ -115,6 +116,11 @@
             display: flex;
             flex-direction: column;
             gap: 6px;
+        }
+
+        /* 오늘 날짜 하이라이트 (CSS 추가) */
+        .cell.today {
+            background-color: var(--today-bg);
         }
 
         .date-wrapper {
@@ -225,7 +231,6 @@
     </div>
 
     <script type="module">
-        // 공식 문서 권장 방식: getHolidayPreset 비동기 로드
         import { getHolidayPreset } from 'https://cdn.jsdelivr.net/npm/@hyunbinseo/holidays-kr/+esm';
 
         const ENCODED_URL = "QUtmeWNieGVoeE4zaXd2NU5udUZSdGQxOVpXZWZVbFNDZEU1WHB2UXVMa3Ntems4ZXhGc1duSzF1QW5OemJHX0N2cXFaTnAx";
@@ -239,7 +244,6 @@
         let baseDate = null; 
         let currentDate = new Date(); 
         
-        // 연도별 휴일 데이터를 저장할 캐시
         const holidayCache = {};
 
         window.goBack = function() {
@@ -256,7 +260,6 @@
             return index === -1 ? '#E2E8F0' : pastelPalette[index % pastelPalette.length];
         }
 
-        // 특정 연도의 휴일 프리셋을 미리 로드하는 함수
         async function loadHolidayPreset(year) {
             if (!holidayCache[year]) {
                 try {
@@ -274,7 +277,6 @@
             const day = String(d.getDate()).padStart(2, '0');
             const dateStr = `${y}-${m}-${day}`;
             
-            // 해당 연도 캐시에 날짜 키가 존재하면 배열을 문자열로 반환
             if (holidayCache[y] && holidayCache[y][dateStr]) {
                 return holidayCache[y][dateStr].join(', ');
             }
@@ -337,7 +339,6 @@
             
             document.getElementById('monthTitle').textContent = `${year}년 ${month + 1}월`;
 
-            // 달력을 그리기 전, 이번 달과 앞뒤 달이 겹칠 수 있으므로 안전하게 휴일 데이터 로드
             await Promise.all([
                 loadHolidayPreset(year - 1),
                 loadHolidayPreset(year),
@@ -361,6 +362,9 @@
             const lastDay = new Date(year, month + 1, 0);
             const startOffset = firstDay.getDay(); 
             const totalCells = Math.ceil((startOffset + lastDay.getDate()) / 7) * 7;
+            
+            /* 오늘 날짜 하이라이트를 위한 변수 추가 */
+            const realToday = new Date();
 
             for (let i = 0; i < totalCells; i++) {
                 const cellDate = new Date(year, month, i - startOffset + 1);
@@ -371,6 +375,13 @@
                     cellDiv.classList.add('other-month');
                 }
 
+                /* 🌟 오늘 날짜 판별 및 클래스 추가 🌟 */
+                if (cellDate.getFullYear() === realToday.getFullYear() && 
+                    cellDate.getMonth() === realToday.getMonth() && 
+                    cellDate.getDate() === realToday.getDate()) {
+                    cellDiv.classList.add('today');
+                }
+
                 const dateWrapper = document.createElement('div');
                 dateWrapper.className = 'date-wrapper';
 
@@ -379,7 +390,6 @@
                 dateNum.textContent = cellDate.getDate();
                 dateWrapper.appendChild(dateNum);
 
-                // --- 안전해진 공휴일 체크 로직 ---
                 const holidayName = getHolidayName(cellDate);
                 if (holidayName) {
                     cellDiv.classList.add('is-holiday');
@@ -397,14 +407,12 @@
                     tomorrowDate.setDate(tomorrowDate.getDate() + 1);
                     const dayShiftName = getDutyName(tomorrowDate);
 
-                    // 당직은 무조건 표시
                     const dutyDiv = document.createElement('div');
                     dutyDiv.className = 'schedule-item';
                     dutyDiv.textContent = `당직: ${dutyName}`;
                     dutyDiv.style.backgroundColor = getPastelColor(dutyName); 
                     cellDiv.appendChild(dutyDiv);
 
-                    // 주말과 휴일에는 주간 근무 제외
                     const isWeekend = (cellDate.getDay() === 0 || cellDate.getDay() === 6);
                     if (!isWeekend && !holidayName) {
                         const dayShiftDiv = document.createElement('div');
@@ -474,7 +482,6 @@
             }
         }
 
-        // 앱 시작
         fetchSheetData();
     </script>
 </body>
