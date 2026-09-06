@@ -265,7 +265,6 @@
 
     <script>
         // ------------------ 설정 ------------------
-        // ★ 문자열 중간에 변수를 넣을 때는 백틱(`)을 사용해야 정상 작동합니다! ★
         const ENCODED_URL = "QUtmeWNieGVoeE4zaXd2NU5udUZSdGQxOVpXZWZVbFNDZEU1WHB2UXVMa3Ntems4ZXhGc1duSzF1QW5OemJHX0N2cXFaTnAx";
         const WEB_APP_URL = `https://script.google.com/macros/s/${atob(ENCODED_URL)}/exec`;
         
@@ -279,8 +278,8 @@
         let baseDate = null; 
         let currentDate = new Date(); // 달력 렌더링용 (현재 달)
 
-        // 휴일 라이브러리 초기화 (한국)
-        const hd = new window.Holidays('KR');
+        // 에러 수정: window.Holidays -> window.DateHolidays
+        const hd = new window.DateHolidays('KR');
         
         // 버튼 이벤트
         function goBack() {
@@ -419,17 +418,23 @@
                     tomorrowDate.setDate(tomorrowDate.getDate() + 1);
                     const dayShiftName = getDutyName(tomorrowDate);
 
+                    // 당직은 무조건 렌더링
                     const dutyDiv = document.createElement('div');
                     dutyDiv.className = 'schedule-item';
                     dutyDiv.textContent = `당직: ${dutyName}`;
                     dutyDiv.style.backgroundColor = getPastelColor(dutyName); 
                     cellDiv.appendChild(dutyDiv);
 
-                    const dayShiftDiv = document.createElement('div');
-                    dayShiftDiv.className = 'schedule-item';
-                    dayShiftDiv.textContent = `주간: ${dayShiftName}`;
-                    dayShiftDiv.style.backgroundColor = getPastelColor(dayShiftName); 
-                    cellDiv.appendChild(dayShiftDiv);
+                    // 주말(0: 일요일, 6: 토요일)이 아니고, 공휴일도 아닐 때만 주간 렌더링
+                    const isWeekend = cellDate.getDay() === 0 || cellDate.getDay() === 6;
+                    
+                    if (!isWeekend && !holidayName) {
+                        const dayShiftDiv = document.createElement('div');
+                        dayShiftDiv.className = 'schedule-item';
+                        dayShiftDiv.textContent = `주간: ${dayShiftName}`;
+                        dayShiftDiv.style.backgroundColor = getPastelColor(dayShiftName); 
+                        cellDiv.appendChild(dayShiftDiv);
+                    }
                 }
                 grid.appendChild(cellDiv);
             }
@@ -439,7 +444,7 @@
         let datesForEdit = []; 
 
         function formatDate(d) {
-            return `${d.getFullYear()}. ${d.getMonth()+1}.${d.getDate()}`;
+            return `${d.getFullYear()}. ${d.getMonth()+1}. ${d.getDate()}`;
         }
 
         function openModal() {
