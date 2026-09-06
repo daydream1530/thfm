@@ -637,7 +637,6 @@
       let inTable = false;
       let listDepth = 0; 
       
-      // 🌟 [추가] 여러 줄(멀티라인) 원문 블록 처리를 위한 상태 변수
       let inRawBlock = false;
       let rawLines = [];
 
@@ -648,7 +647,14 @@
       function parseInline(text) {
         text = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
         
-        // 1. 색상 및 크기 문법 먼저 변환 (이 안의 텍스트는 굵게 등이 적용되어야 함)
+        // 🌟 수정 1: 매크로(색상/크기)를 제외한 순수 원문만 먼저 추출하여 완벽하게 보호
+        let literals = [];
+        text = text.replace(/\{\{\{((?!(?:#[a-zA-Z0-9]+|[+-][12])\s)[\s\S]*?)\}\}\}/g, (match, p1) => {
+          literals.push(p1);
+          return `%%%WIKI_LITERAL_${literals.length - 1}%%%`;
+        });
+
+        // 원문 보호가 끝난 후, 색상 및 크기 매크로 변환 실행
         text = text.replace(/\{\{\{#([a-zA-Z0-9]+)\s+(.*?)\}\}\}/g, (match, colorInfo, content) => {
           let isHexCode = /^[0-9a-fA-F]{3,6}$/.test(colorInfo);
           let finalColor = isHexCode ? '#' + colorInfo : colorInfo;
@@ -659,14 +665,7 @@
         text = text.replace(/\{\{\{-1\s+([\s\S]*?)\}\}\}/g, '<span class="sz-minus-1">$1</span>');
         text = text.replace(/\{\{\{-2\s+([\s\S]*?)\}\}\}/g, '<span class="sz-minus-2">$1</span>');
 
-        // 2. 🌟 [수정 핵심] 나머지 일반 {{{ ... }}} 안의 원문(Literal)을 임시 추출하여 보호
-        let literals = [];
-        text = text.replace(/\{\{\{([\s\S]*?)\}\}\}/g, (match, p1) => {
-          literals.push(p1);
-          return `%%%WIKI_LITERAL_${literals.length - 1}%%%`;
-        });
-
-        // 3. 일반 마크업 변환 (위에서 추출해둔 원문 블록은 이 변환들을 무시하게 됨)
+        // 일반 마크업 변환
         text = text.replace(/\[\[[bB][rR]\]\]|<br\s*\/?>/gi, '<br>');
         text = text.replace(/'''(.*?)'''/g, '<strong>$1</strong>');
         text = text.replace(/''(.*?)''/g, '<em>$1</em>');
@@ -716,9 +715,9 @@
           return `<span class="copyable-text" data-text="${safeText}" onclick="copyToClipboard(this.getAttribute('data-text'))" title="클릭하여 복사">${p1}</span>`;
         });
 
-        // 4. 🌟 [복원] 포맷팅이 끝난 후, 보호해둔 원문을 code 태그로 씌워 다시 넣기
+        // 🌟 수정 2: 붉은색 CSS(wiki-code) 클래스를 제거하고, 배경/글자색이 없는 기본 코드 서식만 적용
         literals.forEach((lit, idx) => {
-          text = text.replace(`%%%WIKI_LITERAL_${idx}%%%`, () => `<code class="wiki-code">${lit}</code>`);
+          text = text.replace(`%%%WIKI_LITERAL_${idx}%%%`, () => `<code style="font-family: Consolas, monospace; color: inherit; background: transparent;">${lit}</code>`);
         });
 
         return text;
@@ -727,24 +726,27 @@
       for (let i = 0; i < lines.length; i++) {
         let line = lines[i];
 
-        // 🌟 [추가] 여러 줄(멀티라인) 텍스트를 원문 블록으로 처리
+        // 🌟 수정 3: 여러 줄 원문 블록 역시 붉은색 CSS를 제거하고 중립적인 회색 박스로 변경
         if (inRawBlock) {
           if (line.trim() === '}}}') { // 블록 종료
-            html += `<pre class="wiki-code" style="display:block; padding:12px; white-space:pre-wrap; margin:15px 0; border:1px solid #e2e8f0; border-radius:4px;">${rawLines.join('<br>')}</pre>`;
+            html += `<pre style="display:block; padding:12px; white-space:pre-wrap; margin:15px 0; border:1px solid #e2e8f0; border-radius:4px; font-family: Consolas, monospace; background-color: #f8fafc; color: #333;">${rawLines.join('<br>')}</pre>`;
             inRawBlock = false;
             rawLines = [];
           } else {
-            // 태그만 이스케이프하고 안에 있는 텍스트는 그대로 저장
             rawLines.push(line.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"));
           }
           continue;
         }
 
-        // {{{ 만 단독으로 있는 줄을 만나면 멀티라인 블록 모드 시작
         if (line.trim() === '{{{') {
           inRawBlock = true;
           if (inTable) { html += '</table>'; inTable = false; }
           closeLists();
+          continue;
+        }
+
+        // 주석 처리 (##)
+        if (line.trim().startsWith('##')) {
           continue;
         }
 
