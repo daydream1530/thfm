@@ -12,8 +12,6 @@
             --border-color: #E2E8F0;
             --sunday-color: #FF8080;
             --saturday-color: #80A0FF;
-            --duty-color: #636F9D;
-            --day-color: #3FB84B;
         }
 
         body {
@@ -53,9 +51,7 @@
             transition: background 0.2s;
         }
 
-        .header button:hover {
-            background-color: #5C6799;
-        }
+        .header button:hover { background-color: #5C6799; }
 
         .month-controls {
             display: flex;
@@ -78,9 +74,7 @@
             padding: 5px 10px;
         }
 
-        .month-controls button:hover {
-            background: #EDF2F7;
-        }
+        .month-controls button:hover { background: #EDF2F7; }
 
         /* 캘린더 그리드 */
         .calendar-wrapper {
@@ -123,42 +117,88 @@
             gap: 6px;
         }
 
-        .cell.other-month {
-            background-color: #F8FAFC;
-        }
-        
-        .cell.other-month .date-num {
-            color: #CBD5E1 !important;
-        }
-
         .date-num {
             font-size: 16px;
             font-weight: bold;
             margin-bottom: 4px;
         }
 
-        .cell:nth-child(7n+1) .date-num { color: var(--sunday-color); } /* 일요일 */
-        .cell:nth-child(7n) .date-num { color: var(--saturday-color); } /* 토요일 */
+        .cell:nth-child(7n+1) .date-num { color: var(--sunday-color); }
+        .cell:nth-child(7n) .date-num { color: var(--saturday-color); }
+
+        /* 다른 달 회색 처리 */
+        .cell.other-month {
+            background-color: #F8FAFC;
+        }
+        .cell.other-month .date-num {
+            color: #E2E8F0 !important;
+        }
+        .cell.other-month .schedule-item {
+            background-color: #F1F5F9 !important;
+            color: #CBD5E1 !important;
+            box-shadow: none;
+        }
 
         /* 근무 스케줄 라벨 */
         .schedule-item {
             font-size: 13px;
             padding: 4px 6px;
             border-radius: 4px;
-            color: white;
+            color: #333;
             font-weight: bold;
         }
 
-        .duty { background-color: var(--duty-color); }
-        .day-shift { background-color: var(--day-color); }
-
-        .loading {
-            text-align: center;
-            padding: 40px;
-            color: #666;
-            font-size: 18px;
-            grid-column: 1 / -1;
+        /* 모달 팝업 스타일 */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
         }
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            width: 350px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+        .modal-content h3 {
+            margin-top: 0;
+            text-align: center;
+            color: #333;
+        }
+        .edit-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .edit-row label { font-weight: bold; width: 120px; }
+        .edit-row input {
+            width: 150px;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .modal-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 25px;
+        }
+        .modal-buttons button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .btn-confirm { background: var(--primary-color); color: white; }
+        .btn-cancel { background: #E2E8F0; color: #475569; }
+
     </style>
 </head>
 <body>
@@ -170,31 +210,57 @@
             <h2 id="monthTitle">YYYY년 M월</h2>
             <button onclick="changeMonth(1)">&#9654;</button>
         </div>
-        <button onclick="goEdit()">수정</button>
+        <button onclick="openModal()">수정</button>
     </div>
 
     <div class="calendar-wrapper">
         <div class="calendar" id="calendarGrid">
-            <div class="loading">데이터를 불러오는 중입니다...</div>
+            <div style="text-align:center; padding: 40px; grid-column: 1/-1;">데이터를 불러오는 중입니다...</div>
+        </div>
+    </div>
+
+    <!-- 수정 모달 팝업 -->
+    <div class="modal-overlay" id="editModal">
+        <div class="modal-content">
+            <h3>당직 근무자 수정</h3>
+            <div class="edit-row">
+                <label id="lblYest">어제 (-.-)</label>
+                <input type="text" id="inpYest">
+            </div>
+            <div class="edit-row">
+                <label id="lblToda">오늘 (-.-)</label>
+                <input type="text" id="inpToda">
+            </div>
+            <div class="edit-row">
+                <label id="lblTomo">내일 (-.-)</label>
+                <input type="text" id="inpTomo">
+            </div>
+            <div class="modal-buttons">
+                <button class="btn-confirm" onclick="saveChanges()">확인</button>
+                <button class="btn-cancel" onclick="closeModal()">취소</button>
+            </div>
         </div>
     </div>
 
     <script>
-        // 상수 및 설정
+        // ------------------ 설정 ------------------
+        // ★ 1단계(이전 답변)에서 생성한 Google Apps Script 웹 앱 URL을 아래에 넣어주세요. ★
+        const ENCODED_URL = "QUtmeWNieGVoeE4zaXd2NU5udUZSdGQxOVpXZWZVbFNDZEU1WHB2UXVMa3Ntems4ZXhGc1duSzF1QW5OemJHX0N2cXFaTnAx";
+        const WEB_APP_URL = "https://script.google.com/macros/s/{atob(ENCODED_URL)}/exec";
+        
         const ENCODED_ID = "MU05ekFvWVNkYXY5SkxwVDVCa3VqWDdpU1JwbFNVZWtlZTRJdmlQQmo1Wk0=";
         const SHEET_ID = atob(ENCODED_ID); 
         
-        let workers = []; // 순환할 근무자 목록 (예: ['김하민', '최우남', '원종민'])
-        let baseDate = null; // 순환의 기준이 되는 첫 날짜 객체
-        let currentDate = new Date(2026, 8, 1); // 사용자가 요청한 예시(2026년 9월) 기준 초기화
+        // 이름에 관계없이 사용할 파스텔 색상 팔레트
+        const pastelPalette = ['#FFB3BA', '#BAE1FF', '#BAFFC9', '#FFFFBA', '#FFDFBA', '#E0BBE4', '#957DAD', '#D291BC'];
+
+        let workers = []; 
+        let baseDate = null; 
+        let currentDate = new Date(); // 달력 렌더링용 (현재 달)
         
         // 버튼 이벤트
         function goBack() {
             window.location.href = "https://daydream1530.github.io/thfm/";
-        }
-
-        function goEdit() {
-            window.open(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit`, '_blank');
         }
 
         function changeMonth(delta) {
@@ -202,10 +268,15 @@
             renderCalendar();
         }
 
-        // 스프레드시트에서 순환 패턴 데이터 불러오기
+        // 특정 이름의 고유 인덱스를 찾아 색상 팔레트에서 배정
+        function getPastelColor(name) {
+            const index = workers.indexOf(name);
+            if (index === -1) return '#E2E8F0'; // 목록에 없는 이름일 경우 기본 회색
+            return pastelPalette[index % pastelPalette.length];
+        }
+
         async function fetchSheetData() {
             const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json`;
-            
             try {
                 const response = await fetch(url);
                 const text = await response.text();
@@ -213,57 +284,49 @@
                 const data = JSON.parse(jsonStr);
                 
                 let entries = [];
-
                 data.table.rows.forEach(row => {
                     if (row.c[0] && row.c[1]) {
                         let rawStr = row.c[0].f || row.c[0].v;
                         let d = null;
                         
-                        // 구글 JSON 날짜 포맷 'Date(2026,8,6)' 형태 대응
                         if (typeof rawStr === 'string' && rawStr.includes('Date')) {
                             const match = rawStr.match(/Date\((\d+),\s*(\d+),\s*(\d+)/);
                             if (match) d = new Date(match[1], match[2], match[3]);
-                        } 
-                        // 일반 문자열 '2026. 9. 6' 형태 대응
-                        else if (typeof rawStr === 'string') {
+                        } else if (typeof rawStr === 'string') {
                             const match = rawStr.match(/(\d{4})\D+(\d{1,2})\D+(\d{1,2})/);
                             if (match) d = new Date(match[1], match[2] - 1, match[3]);
                         }
-
-                        if (d) {
-                            entries.push({ date: d, name: row.c[1].v });
-                        }
+                        if (d) entries.push({ date: d, name: row.c[1].v });
                     }
                 });
 
-                // 날짜 오름차순으로 정렬
                 entries.sort((a, b) => a.date - b.date);
-
                 if (entries.length > 0) {
                     baseDate = entries[0].date;
-                    // 입력된 사람들 목록을 순환 배열로 생성
                     workers = entries.map(e => e.name); 
                 }
-
             } catch (error) {
                 console.error("데이터 로드 실패:", error);
-                alert("스프레드시트 데이터를 불러오지 못했습니다. 시트가 공개 설정되어 있는지 확인해주세요.");
             } finally {
-                // 현재 달력을 오늘 날짜(또는 기준일)로 맞추고 싶다면 아래 주석을 해제하세요.
-                // if (baseDate) currentDate = new Date(baseDate.getFullYear(), baseDate.getMonth(), 1);
                 renderCalendar();
             }
         }
 
-        // 기준일(baseDate)로부터 해당 날짜(targetDate)까지 며칠 차이나는지 계산
         function getDaysDiff(targetDate) {
-            // 시간차이로 인한 오류를 방지하기 위해 UTC로 변환하여 계산
             const utc1 = Date.UTC(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate());
             const utc2 = Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
             return Math.floor((utc2 - utc1) / (1000 * 60 * 60 * 24));
         }
 
-        // 달력 화면 렌더링
+        // 당직자 구하기 함수
+        function getDutyName(targetDate) {
+            if (!baseDate || workers.length === 0) return "";
+            const diffDays = getDaysDiff(targetDate);
+            const n = workers.length;
+            const dutyIdx = ((diffDays % n) + n) % n;
+            return workers[dutyIdx];
+        }
+
         function renderCalendar() {
             const year = currentDate.getFullYear();
             const month = currentDate.getMonth();
@@ -272,7 +335,6 @@
             const grid = document.getElementById('calendarGrid');
             grid.innerHTML = ''; 
 
-            // 요일 헤더
             const weekdays = ['일', '월', '화', '수', '목', '금', '토'];
             const weekdayClasses = ['sun', '', '', '', '', '', 'sat'];
             
@@ -288,9 +350,6 @@
             const startOffset = firstDay.getDay(); 
             const totalCells = Math.ceil((startOffset + lastDay.getDate()) / 7) * 7;
 
-            // 순환할 인원 수 (시트에 적힌 사람 수)
-            const n = workers.length;
-
             for (let i = 0; i < totalCells; i++) {
                 const cellDate = new Date(year, month, i - startOffset + 1);
                 const cellDiv = document.createElement('div');
@@ -300,37 +359,96 @@
                     cellDiv.classList.add('other-month');
                 }
 
-                // 날짜 표시
                 const dateNum = document.createElement('div');
                 dateNum.className = 'date-num';
                 dateNum.textContent = cellDate.getDate();
                 cellDiv.appendChild(dateNum);
 
-                // 기준일과 데이터가 있는 경우에만 근무자 계산
-                if (baseDate && n > 0) {
-                    const diffDays = getDaysDiff(cellDate);
-                    
-                    // JS에서는 음수 모듈로(%) 연산 시 값이 꼬일 수 있으므로 (diff % n + n) % n 을 사용합니다.
-                    const dutyIdx = ((diffDays % n) + n) % n;
-                    // 주간은 당직 다음 순서 사람
-                    const dayShiftIdx = (dutyIdx + 1) % n;
+                if (baseDate && workers.length > 0) {
+                    const dutyName = getDutyName(cellDate);
+                    const tomorrowDate = new Date(cellDate);
+                    tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+                    const dayShiftName = getDutyName(tomorrowDate);
 
                     const dutyDiv = document.createElement('div');
-                    dutyDiv.className = 'schedule-item duty';
-                    dutyDiv.textContent = `당직: ${workers[dutyIdx]}`;
+                    dutyDiv.className = 'schedule-item';
+                    dutyDiv.textContent = `당직: ${dutyName}`;
+                    dutyDiv.style.backgroundColor = getPastelColor(dutyName); // 동적 색상 적용
                     cellDiv.appendChild(dutyDiv);
 
                     const dayShiftDiv = document.createElement('div');
-                    dayShiftDiv.className = 'schedule-item day-shift';
-                    dayShiftDiv.textContent = `주간: ${workers[dayShiftIdx]}`;
+                    dayShiftDiv.className = 'schedule-item';
+                    dayShiftDiv.textContent = `주간: ${dayShiftName}`;
+                    dayShiftDiv.style.backgroundColor = getPastelColor(dayShiftName); // 동적 색상 적용
                     cellDiv.appendChild(dayShiftDiv);
                 }
-
                 grid.appendChild(cellDiv);
             }
         }
 
-        // 초기화
+        // --- 모달 팝업 및 수정 로직 ---
+        let datesForEdit = []; // [어제, 오늘, 내일] Date 객체 저장
+
+        function formatDate(d) {
+            return `${d.getFullYear()}. ${d.getMonth()+1}. ${d.getDate()}`;
+        }
+
+        function openModal() {
+            const today = new Date();
+            const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
+            const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
+            
+            datesForEdit = [yesterday, today, tomorrow];
+
+            document.getElementById('lblYest').textContent = `어제 (${yesterday.getMonth()+1}/${yesterday.getDate()})`;
+            document.getElementById('lblToda').textContent = `오늘 (${today.getMonth()+1}/${today.getDate()})`;
+            document.getElementById('lblTomo').textContent = `내일 (${tomorrow.getMonth()+1}/${tomorrow.getDate()})`;
+
+            document.getElementById('inpYest').value = getDutyName(yesterday);
+            document.getElementById('inpToda').value = getDutyName(today);
+            document.getElementById('inpTomo').value = getDutyName(tomorrow);
+
+            document.getElementById('editModal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('editModal').style.display = 'none';
+        }
+
+        async function saveChanges() {
+            if (WEB_APP_URL === "여기에_웹앱_URL을_붙여넣으세요") {
+                alert("구글 앱스 스크립트(Web App) URL이 설정되지 않았습니다.\n코드 상단의 WEB_APP_URL을 수정해주세요.");
+                return;
+            }
+
+            const newWorkers = [
+                { date: formatDate(datesForEdit[0]), name: document.getElementById('inpYest').value },
+                { date: formatDate(datesForEdit[1]), name: document.getElementById('inpToda').value },
+                { date: formatDate(datesForEdit[2]), name: document.getElementById('inpTomo').value }
+            ];
+
+            // UI 화면 즉시 반영을 위해 기존 workers 배열 교체
+            baseDate = datesForEdit[0];
+            workers = newWorkers.map(w => w.name);
+            renderCalendar();
+            closeModal();
+
+            // 백엔드(구글 시트)에 POST 전송
+            try {
+                const response = await fetch(WEB_APP_URL, {
+                    method: 'POST',
+                    body: JSON.stringify(newWorkers)
+                });
+                const result = await response.json();
+                if (result.result !== 'success') {
+                    alert('저장에 실패했습니다.');
+                }
+            } catch (e) {
+                console.error(e);
+                alert('시트 갱신 중 오류가 발생했습니다.');
+            }
+        }
+
         fetchSheetData();
 
     </script>
