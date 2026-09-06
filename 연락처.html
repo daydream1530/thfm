@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>연락처</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --border-color: #e2e8f0;
+            --text-color: #1e293b;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .header-card {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            margin-bottom: 24px;
+            position: sticky;
+            top: 20px;
+            z-index: 100;
+        }
+
+        .header-title {
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-size: 24px;
+            color: #0f172a;
+        }
+
+        /* 변경된 헤더 컨트롤 레이아웃 */
+        .header-controls {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+        }
+
+        .search-box {
+            display: flex;
+            gap: 10px;
+            flex: 1; /* 검색창이 남는 공간을 꽉 채우도록 설정 */
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 16px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .search-input:focus {
+            border-color: var(--primary-color);
+        }
+
+        /* 돌아가기 버튼 스타일 추가 */
+        .back-btn {
+            color: #475569;
+            background-color: #f1f5f9;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 15px;
+            padding: 10px 16px;
+            border-radius: 8px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            white-space: nowrap;
+            border: 1px solid var(--border-color);
+        }
+
+        .back-btn:hover {
+            background-color: #e2e8f0;
+            color: #0f172a;
+        }
+
+        .back-btn svg {
+            margin-right: 6px;
+        }
+
+        .group-section {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .group-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #0f172a;
+            margin-top: 0;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid var(--primary-color);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            background-color: #f1f5f9;
+            font-weight: 600;
+            color: #475569;
+            font-size: 14px;
+        }
+
+        td {
+            font-size: 15px;
+            color: #334155;
+        }
+
+        tr:hover td {
+            background-color: #f8fafc;
+        }
+
+        .contact-cell {
+            cursor: pointer;
+            color: var(--primary-color);
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .contact-cell:hover {
+            color: #1d4ed8;
+            text-decoration: underline;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+        
+        #status-msg {
+            font-size: 14px;
+            margin-bottom: 15px;
+            font-weight: 500;
+        }
+
+        #toast {
+            visibility: hidden;
+            min-width: 250px;
+            background-color: #334155;
+            color: #fff;
+            text-align: center;
+            border-radius: 8px;
+            padding: 16px;
+            position: fixed;
+            z-index: 1000;
+            left: 50%;
+            bottom: 30px;
+            transform: translateX(-50%);
+            font-size: 15px;
+            opacity: 0;
+            transition: opacity 0.3s, bottom 0.3s ease-in-out;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        #toast.show {
+            visibility: visible;
+            opacity: 1;
+            bottom: 50px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header-card">
+            <div id="status-msg"></div>
+            <!-- 수정한 헤더 부분 -->
+            <div class="header-controls">
+                <!-- 돌아가기 버튼 -->
+                <a href="https://daydream1530.github.io/thfm/" class="back-btn">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                    돌아가기
+                </a>
+                
+                <!-- 기존 검색창 -->
+                <div class="search-box">
+                    <input type="text" id="search-input" class="search-input" placeholder="검색">
+                </div>
+            </div>
+        </div>
+
+        <div id="data-container"></div>
+    </div>
+
+    <div id="toast"></div>
+
+    <script>
+        // 구글 시트 ID 및 데이터 호출 URL 설정
+        const SHEET_ID = 'MVVfSUN1Rlc5YlAyc3ZiYXV3OC1XTEM0WjdYaHZtek1ObTRYZUVpOHFuOGM=';
+        const GOOGLE_SHEET_URL = `https://docs.google.com/spreadsheets/d/${atob(SHEET_ID)}/gviz/tq?tqx=out:csv`;
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            const searchInput = document.getElementById('search-input');
+            const dataContainer = document.getElementById('data-container');
+            const statusMsg = document.getElementById('status-msg');
+
+            // 1. 데이터 자동 로드
+            try {
+                if(statusMsg) {
+                    statusMsg.style.display = 'block';
+                    statusMsg.style.color = '#2563eb';
+                    statusMsg.textContent = "데이터를 불러오는 중입니다...";
+                }
+
+                const response = await fetch(GOOGLE_SHEET_URL);
+                
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+                // 데이터를 텍스트 형태로 먼저 받아옵니다.
+                const textData = await response.text();
+                
+                // 만약 구글 시트 권한이 막혀서 로그인 페이지(HTML)가 반환되었다면 에러 처리
+                if (textData.trim().startsWith('<!DOCTYPE html>') || textData.trim().startsWith('<html')) {
+                    throw new Error("구글 시트 접근 권한이 없습니다. 시트 우측 상단 '공유'에서 '링크가 있는 모든 사용자'로 변경해주세요.");
+                }
+
+                console.log("정상적으로 구글 시트 데이터를 가져왔습니다.");
+
+                // 기존 xlsx 통일성 유지: 받아온 CSV 텍스트를 그대로 파싱합니다.
+                const workbook = XLSX.read(textData, { type: 'string' });
+                
+                processWorkbook(workbook, dataContainer);
+                
+                // 성공 시 메시지 숨김
+                if(statusMsg) {
+                    statusMsg.style.display = 'none';
+                }
+
+            } catch (error) {
+                console.error("자동 로드 실패:", error.message);
+                if(statusMsg) {
+                    statusMsg.style.display = 'block';
+                    statusMsg.style.color = '#dc2626';
+                    statusMsg.innerHTML = "오류발생: " + error.message;
+                }
+            }
+
+            // 2. 검색 이벤트 바인딩 (기존 로직 완벽 동일)
+            if (searchInput) {
+                searchInput.addEventListener('input', (event) => {
+                    const keyword = event.target.value.toLowerCase().trim();
+                    const sections = document.querySelectorAll('.group-section');
+
+                    sections.forEach(section => {
+                        const groupTitle = section.querySelector('.group-title');
+                        const groupTitleText = groupTitle ? groupTitle.textContent.toLowerCase() : '';
+                        const isGroupMatch = groupTitleText.includes(keyword); 
+                        let hasVisibleRow = false; 
+                        
+                        const rows = section.querySelectorAll('.data-row');
+
+                        rows.forEach(row => {
+                            const rowText = row.textContent.toLowerCase();
+                            
+                            if (isGroupMatch || rowText.includes(keyword)) {
+                                row.classList.remove('hidden');
+                                hasVisibleRow = true;
+                            } else {
+                                row.classList.add('hidden');
+                            }
+                        });
+
+                        if (hasVisibleRow) {
+                            section.classList.remove('hidden');
+                        } else {
+                            section.classList.add('hidden');
+                        }
+                    });
+                });
+            }
+        });
+
+        // 워크북 처리 함수
+        function processWorkbook(workbook, container) {
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
+            const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+            
+            // 개발자 도구(F12) 콘솔에서 데이터가 제대로 들어오는지 확인하기 위한 로그
+            console.log("추출된 데이터 구조:", jsonData);
+
+            if (jsonData.length === 0) {
+                const statusMsg = document.getElementById('status-msg');
+                statusMsg.style.display = 'block';
+                statusMsg.style.color = '#dc2626';
+                statusMsg.textContent = "시트 안에 데이터가 없거나 형식이 맞지 않습니다. (1행에 그룹, 업체, 이름, 연락처 등이 있는지 확인하세요)";
+                return;
+            }
+
+            renderData(jsonData, container);
+        }
+
+        // 렌더링 함수 (기존 로직 완벽 동일)
+        function renderData(data, container) {
+            container.innerHTML = ''; 
+
+            const groupedData = {};
+            data.forEach(row => {
+                const groupName = row['그룹'] || '미분류'; 
+                if (!groupedData[groupName]) {
+                    groupedData[groupName] = [];
+                }
+                groupedData[groupName].push(row);
+            });
+
+            for (const [groupName, items] of Object.entries(groupedData)) {
+                const section = document.createElement('div');
+                section.className = 'group-section';
+
+                const title = document.createElement('h2');
+                title.className = 'group-title';
+                title.textContent = groupName;
+                section.appendChild(title);
+
+                const table = document.createElement('table');
+                table.innerHTML = `
+                    <thead>
+                        <tr>
+                            <th style="width: 20%;">업체</th>
+                            <th style="width: 20%;">이름</th>
+                            <th style="width: 30%;">연락처</th>
+                            <th style="width: 30%;">비고</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                `;
+                
+                const tbody = table.querySelector('tbody');
+
+                items.forEach(item => {
+                    const tr = document.createElement('tr');
+                    tr.className = 'data-row';
+                    const contact = item['연락처1'] || item['연락처'] || '';
+                    
+                    const tdCompany = document.createElement('td');
+                    tdCompany.textContent = item['업체'] || '';
+                    
+                    const tdName = document.createElement('td');
+                    tdName.textContent = item['이름'] || '';
+
+                    const tdContact = document.createElement('td');
+                    tdContact.textContent = contact;
+                    if (contact.trim() !== '') {
+                        tdContact.className = 'contact-cell';
+                        tdContact.title = "클릭하여 복사";
+                        tdContact.onclick = () => copyToClipboard(contact);
+                    }
+
+                    const tdNote = document.createElement('td');
+                    tdNote.textContent = item['비고'] || '';
+
+                    tr.appendChild(tdCompany);
+                    tr.appendChild(tdName);
+                    tr.appendChild(tdContact);
+                    tr.appendChild(tdNote);
+
+                    tbody.appendChild(tr);
+                });
+
+                section.appendChild(table);
+                container.appendChild(section);
+            }
+        }
+
+        // 복사 알림 함수 (기존 로직 완벽 동일)
+        function copyToClipboard(text) {
+            if (!text) return;
+            
+            navigator.clipboard.writeText(text).then(() => {
+                showToast(`'${text}' 복사되었습니다.`);
+            }).catch(err => {
+                console.error('복사 실패:', err);
+                showToast('복사에 실패했습니다. 기기 권한을 확인해주세요.');
+            });
+        }
+
+        let toastTimeout;
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            if(!toast) return;
+            
+            toast.textContent = message;
+            toast.classList.add('show');
+            
+            if (toastTimeout) clearTimeout(toastTimeout);
+            
+            toastTimeout = setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>

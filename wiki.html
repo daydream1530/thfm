@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wiki</title>
+  <style>
+    :root {
+      --namu-green: #00a495;
+      --namu-bg: #f6f8f9;
+      --namu-text: #373a3c;
+      --namu-border: #e2e8f0;
+      --namu-link: #008275;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+      background-color: var(--namu-bg); color: var(--namu-text); line-height: 1.65; font-size: 15px;
+    }
+
+    /* 상단 바 */
+    header {
+      background-color: var(--namu-green);
+      height: 56px;
+      padding: 0 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+    }
+
+    .back-btn { color: white; text-decoration: none; font-weight: 700; font-size: 15px; padding: 8px 12px; border-radius: 4px; transition: background-color 0.2s; display: flex; align-items: center; }
+    .back-btn:hover { background-color: rgba(255, 255, 255, 0.15); text-decoration: none; }
+    .back-btn svg { margin-right: 6px; }
+    
+    .search-box { display: flex; align-items: center; background: white; border-radius: 4px; width: 250px; position: relative; }
+    .search-box input { border: none; padding: 8px 12px; outline: none; width: 100%; font-size: 14px; border-radius: 4px 0 0 4px; }
+    .search-box button { background: white; border: none; padding: 8px 12px; cursor: pointer; color: #555; border-radius: 0 4px 4px 0; }
+
+    .search-dropdown { position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: #fff; border: 1px solid var(--namu-border); border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); max-height: 300px; overflow-y: auto; display: none; z-index: 1001; }
+    .search-dropdown.show { display: block; }
+    .search-dropdown-item { padding: 10px 12px; cursor: pointer; font-size: 14px; color: var(--namu-text); border-bottom: 1px solid #f1f5f9; }
+    .search-dropdown-item:last-child { border-bottom: none; }
+    .search-dropdown-item:hover, .search-dropdown-item.active { background-color: #f8fafc; color: var(--namu-green); }
+    .search-dropdown-item strong { color: #111; font-weight: 800; }
+
+    .layout-wrapper { max-width: 1200px; margin: 25px auto; display: flex; gap: 20px; padding: 0 15px; align-items: flex-start; }
+
+    .main-content { flex: 1; background: #fff; border: 1px solid var(--namu-border); border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); padding: 35px 40px; min-height: 80vh; position: relative; }
+
+    .sidebar { width: 280px; flex-shrink: 0; }
+    .sidebar-box { background: #fff; border: 1px solid var(--namu-border); border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+    .sidebar-title { font-size: 16px; font-weight: 700; padding: 12px 16px; border-bottom: 1px solid var(--namu-border); color: #333; }
+    .doc-list { list-style: none; padding: 10px 0; margin: 0; max-height: calc(100vh - 120px); overflow-y: auto; }
+    .doc-list li a { display: block; padding: 6px 16px; color: var(--namu-link); font-size: 14px; text-decoration: none; }
+    .doc-list li a:hover { background-color: #f8fafc; text-decoration: underline; }
+
+    /* 문서 헤더 및 액션 버튼 */
+    .doc-header { border-bottom: 2px solid var(--namu-green); padding-bottom: 12px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: flex-end; }
+    .doc-title { font-size: 2.2rem; font-weight: 700; color: #212529; letter-spacing: -1px; margin: 0;}
+    .doc-actions { display: flex; gap: 8px; }
+    .doc-actions button { padding: 6px 12px; font-size: 13px; font-weight: bold; background: #fff; border: 1px solid #ccc; border-radius: 4px; cursor: pointer; color: #333; display: flex; align-items: center; justify-content: center; }
+    .doc-actions button:hover { background: #f1f3f5; }
+    .doc-actions button.primary { background: var(--namu-green); color: white; border-color: var(--namu-green); }
+    .doc-actions button.primary:hover { background: var(--namu-link); }
+    .doc-actions button svg { margin-right: 4px; }
+
+    .wiki-error { color: #e03131; font-weight: bold; background: #fff5f5; padding: 30px; border: 1px solid #ffc9c9; border-radius: 4px; text-align: center;}
+    
+    /* 편집기 모드 */
+    #editContainer { display: none; width: 100%; height: 60vh; }
+    #editorTextarea { width: 100%; height: 100%; padding: 15px; font-family: monospace; font-size: 14px; border: 1px solid #ccc; border-radius: 4px; resize: vertical; outline: none; }
+    #editorTextarea:focus { border-color: var(--namu-green); }
+
+    /* 역사 모드 */
+    #historyContainer { display: none; }
+    .history-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #eee; }
+    .history-item:hover { background: #f8fafc; }
+    .history-time { font-weight: bold; color: #333; }
+    .history-name { font-size: 13px; color: #777; margin-left: 10px;}
+
+    /* 위키 스타일 요소 */
+    a { color: var(--namu-link); text-decoration: none; cursor: pointer; }
+    a:hover { text-decoration: underline; }
+    .toc-box { background-color: #fcfcfc; border: 1px solid var(--namu-border); display: inline-block; min-width: 260px; padding: 12px 18px; margin: 20px 0; border-radius: 4px; }
+    .toc-title { font-weight: bold; text-align: center; margin-bottom: 8px; border-bottom: 1px solid #eee; padding-bottom: 4px; }
+    .toc-list { list-style: none; padding-left: 0; font-size: 0.92rem; }
+    .toc-list li { margin: 3px 0; }
+    .toc-list .toc-sub { padding-left: 15px; }
+    .wiki-h1, .wiki-h2, .wiki-h3, .wiki-h4 { font-weight: 700; border-bottom: 1px solid #ccc; margin-top: 30px; margin-bottom: 12px; padding-bottom: 4px; color: #111; }
+    .wiki-h1 { font-size: 1.6rem; border-bottom: 2px solid var(--namu-green); }
+    .wiki-h2 { font-size: 1.35rem; }
+    .wiki-h3 { font-size: 1.15rem; }
+    .wiki-h4 { font-size: 1.0rem; }
+    .h-index-link { text-decoration: none !important; color: var(--namu-green) !important; }
+    .h-index-link:hover .h-index { text-decoration: underline; }
+    .h-index { margin-right: 6px; }
+    ul.wiki-list { padding-left: 28px; margin: 4px 0 8px 0; list-style-type: square; }
+    ul.wiki-list li { margin-bottom: 4px; }
+    ul.wiki-list ul.wiki-list { list-style-type: disc; margin: 2px 0 2px 0; }
+    blockquote { margin: 14px 0; padding: 10px 18px; background-color: #fdfdfd; border-left: 5px solid var(--namu-green); color: #555; }
+    hr { border: 0; height: 1px; background: #ccc; margin: 20px 0; }
+    table.wiki-table { border-collapse: collapse; margin: 15px 0; width: 100%; border: 1px solid #ccc; font-size: 0.93rem; }
+    table.wiki-table td, table.wiki-table th { border: 1px solid #ccc; padding: 8px 12px; text-align: left; }
+    table.wiki-table tr:first-child td { background-color: var(--namu-green); color: white; font-weight: bold; }
+    code.wiki-code { background-color: #f1f3f5; color: #e03131; padding: 2px 5px; border-radius: 3px; font-family: Consolas, monospace; font-size: 0.9em; }
+    sup.footnote-ref a { font-size: 0.75rem; font-weight: bold; padding: 0 2px; }
+    .footnotes-section { margin-top: 40px; padding-top: 15px; border-top: 2px solid #ccc; font-size: 0.88rem; }
+    .footnotes-section ol { padding-left: 20px; }
+    .footnotes-section li { margin-bottom: 4px; }
+    .sz-plus-1 { font-size: 1.15em; } .sz-plus-2 { font-size: 1.3em; } .sz-minus-1 { font-size: 0.9em; } .sz-minus-2 { font-size: 0.8em; }
+    .copyable-text { color: #0284c7; cursor: pointer; font-weight: bold; transition: color 0.2s; }
+    .copyable-text:hover { color: #0369a1; text-decoration: underline; }
+    .wiki-image { max-width: 100%; height: auto; display: block; margin: 15px 0; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    
+    #toast { visibility: hidden; min-width: 250px; background-color: #334155; color: #fff; text-align: center; border-radius: 8px; padding: 16px; position: fixed; z-index: 1000; left: 50%; bottom: 30px; transform: translateX(-50%); font-size: 15px; opacity: 0; transition: opacity 0.3s, bottom 0.3s ease-in-out; }
+    #toast.show { visibility: visible; opacity: 1; bottom: 50px; }
+    .floating-nav { position: fixed; bottom: 40px; right: 40px; display: flex; flex-direction: column; gap: 16px; z-index: 1000; }
+    .nav-btn-box { background: #ffffff; border: 1px solid var(--namu-border); border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08); display: flex; flex-direction: column; overflow: hidden; }
+    .nav-btn { background: transparent; border: none; padding: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #475569; transition: background-color 0.2s; }
+    .nav-btn:hover { background-color: #f8fafc; }
+    .nav-btn svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+    .border-bottom { border-bottom: 1px solid var(--namu-border); }
+  </style>
+</head>
+<body>
+
+  <header>
+    <a href="https://daydream1530.github.io/thfm/" class="back-btn">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      돌아가기
+    </a>
+
+    <div class="search-box">
+      <input type="text" id="searchInput" placeholder="여기에서 검색" autocomplete="off">
+      <button onclick="searchDoc()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+      </button>
+      <div id="searchDropdown" class="search-dropdown"></div>
+    </div>
+  </header>
+
+  <div class="layout-wrapper">
+    <main class="main-content">
+      <div class="doc-header" id="docHeader">
+        <h1 class="doc-title" id="docTitle">로딩 중...</h1>
+        <!-- 편집/역사 버튼 영역 -->
+        <div class="doc-actions" id="docActions" style="display:none;">
+          <button id="btnEdit" onclick="enterEditMode()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>편집</button>
+          <button id="btnHistory" onclick="showHistoryMode()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>역사</button>
+        </div>
+      </div>
+      
+      <!-- 본문 읽기 영역 -->
+      <article id="wikiContent"></article>
+
+      <!-- 본문 수정 영역 -->
+      <div id="editContainer">
+        <textarea id="editorTextarea"></textarea>
+        <div class="doc-actions" style="margin-top: 15px; justify-content: flex-end;">
+          <button onclick="cancelEdit()">취소</button>
+          <button class="primary" onclick="saveDocument()">저장</button>
+        </div>
+      </div>
+
+      <!-- 역사 목록 영역 -->
+      <div id="historyContainer">
+        <div style="margin-bottom:15px; color:#666;">※ 이 문서의 백업 내역입니다. 복구 버튼을 누르면 해당 시점으로 되돌립니다.</div>
+        <div id="historyList"></div>
+      </div>
+
+    </main>
+
+    <aside class="sidebar">
+      <div class="sidebar-box">
+        <div class="sidebar-title">목록</div>
+        <ul id="docList" class="doc-list"></ul>
+      </div>
+    </aside>
+  </div>
+
+  <div class="floating-nav">
+    <div class="nav-btn-box">
+      <button class="nav-btn" onclick="document.getElementById('toc-box')?.scrollIntoView({behavior: 'smooth'})" title="목차로 이동">
+        <svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" /></svg>
+      </button>
+    </div>
+    <div class="nav-btn-box">
+      <button class="nav-btn border-bottom" onclick="window.scrollTo({top: 0, behavior: 'smooth'})" title="맨 위로">
+        <svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+      </button>
+      <button class="nav-btn" onclick="window.scrollTo({top: document.body.scrollHeight, behavior: 'smooth'})" title="맨 아래로">
+        <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+
+  <script>
+    const URL_1 = "aHR0cHM6Ly9zY3JpcHQuZ29vZ2xlLmNvbS9tYWNyb3Mvcy8=";
+    const ENCRYPTED_ID = "QUtmeWNienhkQnN4M3YtYXkwYlZULU9sRDRlYmQyWVBDRDc1dGFEeG8ydi11SElQT0FLV1hLdEVveE50blh5eV81ZU1ZOHB4Q1E=";
+    const URL_2 = "L2V4ZWM=";
+
+    const decryptMap = {
+      'Q':'A', 'W':'B', 'E':'C', 'R':'D', 'T':'E', 'Y':'F', 'U':'G', 'I':'H', 'O':'I', 'P':'J',
+      'A':'K', 'S':'L', 'D':'M', 'F':'N', 'G':'O', 'H':'P', 'J':'Q', 'K':'R', 'L':'S', 'Z':'T',
+      'X':'U', 'C':'V', 'V':'W', 'B':'X', 'N':'Y', 'M':'Z',
+      'q':'a', 'w':'b', 'e':'c', 'r':'d', 't':'e', 'y':'f', 'u':'g', 'h':'i', 'o':'i', 'p':'j',
+      'k':'a', 'l':'s', 'm':'d', 'n':'f', 'o':'g', 'p':'h', 'j':'q', 'k':'r', 'l':'s', 'z':'t',
+      'x':'u', 'c':'v', 'v':'w', 'b':'x', 'n':'y', 'm':'z',
+      '5':'0', '6':'1', '7':'2', '8':'3', '9':'4', '0':'5', '1':'6', '2':'7', '3':'8', '4':'9',
+      '-':'+', '_':'/'
+    };
+
+    function getUnmapped(text) {
+      return text;
+    }
+
+    function getDecryptedUrl() {
+      // 치환 해제
+      const unmapped = getUnmapped(ENCRYPTED_ID);
+      let part1 = getUnmapped(URL_1);
+      let part2 = getUnmapped(URL_2);
+      
+      // Base64 디코딩하여 원래 값들 획득
+      const realId = atob(unmapped);
+      part1 = atob(part1);
+      part2 = atob(part2);
+      
+      // 최종 URL 조립
+      return part1 + realId + part2;
+    }
+
+    const GAS_WEB_APP_URL = getDecryptedUrl();
+    
+    // ... (이하 기존 로직 동일)
+
+    // 대문용 깃허브 기본 설정
+    const GITHUB_REPO = 'daydream1530/thfm';
+    const GITHUB_RAW_BASE = `https://raw.githubusercontent.com/${GITHUB_REPO}/main/wiki/`;
+    
+    const docHeaderEl = document.getElementById('docHeader');
+    const docTitleEl = document.getElementById('docTitle');
+    const contentArea = document.getElementById('wikiContent');
+    const editContainer = document.getElementById('editContainer');
+    const editorTextarea = document.getElementById('editorTextarea');
+    const historyContainer = document.getElementById('historyContainer');
+    const docActions = document.getElementById('docActions');
+    const searchInput = document.getElementById('searchInput');
+    const searchDropdown = document.getElementById('searchDropdown');
+
+    let wikiCache = {}; 
+    let allWikiDocs = [];
+    let currentDocName = ''; 
+    let currentRawText = '';
+    let toastTimeout;
+    
+    function showToast(message) {
+        const toast = document.getElementById('toast');
+        if(!toast) return;
+        toast.textContent = message;
+        toast.classList.add('show');
+        if (toastTimeout) clearTimeout(toastTimeout);
+        toastTimeout = setTimeout(() => { toast.classList.remove('show'); }, 3000);
+    }
+    
+    window.copyToClipboard = function(text) {
+        if (!text) return;
+        navigator.clipboard.writeText(text).then(() => {
+            showToast(`'${text}' 복사되었습니다.`);
+        }).catch(() => { showToast('복사에 실패했습니다.'); });
+    }
+
+    function searchDoc() {
+      const keyword = searchInput.value.trim();
+      if(keyword) {
+        searchDropdown.classList.remove('show');
+        loadDocument(keyword);
+      }
+    }
+
+    window.handleInternalLink = function(e, docName) {
+      e.preventDefault();
+      loadDocument(docName);
+    }
+
+    async function fetchAllWikiData() {
+      try {
+        const response = await fetch(`${GAS_WEB_APP_URL}?action=getAll`);
+        wikiCache = await response.json();
+        updateSidebarAndSearch();
+      } catch (error) {
+        console.error(error);
+        document.getElementById('docList').innerHTML = '<li style="padding:10px 16px; color:#e03131;">위키 데이터를 불러오지 못했습니다.</li>';
+      }
+    }
+
+    function updateSidebarAndSearch() {
+      const listEl = document.getElementById('docList');
+      listEl.innerHTML = '';
+      
+      allWikiDocs = Object.keys(wikiCache);
+      allWikiDocs.sort();
+
+      let visibleDocs = [];
+      allWikiDocs.forEach(doc => {
+        if (wikiCache[doc] !== "") visibleDocs.push(doc);
+      });
+      visibleDocs.sort();
+
+      const liMain = document.createElement('li');
+      liMain.innerHTML = `<a href="?doc=${encodeURIComponent('대문')}" onclick="handleInternalLink(event, '대문')">대문</a>`;
+      listEl.appendChild(liMain);
+
+      visibleDocs.forEach(docName => {
+        if (docName !== '대문') {
+          const li = document.createElement('li');
+          li.innerHTML = `<a href="?doc=${encodeURIComponent(docName)}" onclick="handleInternalLink(event, '${docName}')">${docName}</a>`;
+          listEl.appendChild(li);
+        }
+      });
+    }
+
+    let currentFocus = -1;
+    searchInput.addEventListener('input', function() {
+      const val = this.value.trim();
+      searchDropdown.innerHTML = '';
+      currentFocus = -1;
+      
+      if (!val) {
+        searchDropdown.classList.remove('show');
+        return;
+      }
+      
+      const matchedDocs = allWikiDocs.filter(doc => doc.toLowerCase().includes(val.toLowerCase()));
+      if("대문".includes(val) && !matchedDocs.includes("대문")) matchedDocs.unshift("대문");
+      
+      if (matchedDocs.length > 0) {
+        matchedDocs.forEach(doc => {
+          const div = document.createElement('div');
+          div.className = 'search-dropdown-item';
+          const regex = new RegExp(`(${val})`, "gi");
+          div.innerHTML = doc.replace(regex, "<strong>$1</strong>");
+          
+          div.addEventListener('click', function() {
+            searchInput.value = doc;
+            searchDropdown.classList.remove('show');
+            loadDocument(doc);
+          });
+          searchDropdown.appendChild(div);
+        });
+        searchDropdown.classList.add('show');
+      } else {
+        searchDropdown.classList.remove('show');
+      }
+    });
+
+    searchInput.addEventListener('keydown', function(e) {
+      let items = searchDropdown.getElementsByClassName('search-dropdown-item');
+      if (e.key === 'ArrowDown') { currentFocus++; addActive(items); } 
+      else if (e.key === 'ArrowUp') { currentFocus--; addActive(items); } 
+      else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (currentFocus > -1 && items.length > 0) items[currentFocus].click();
+        else searchDoc();
+      }
+    });
+
+    function addActive(items) {
+      if (!items || items.length === 0) return false;
+      removeActive(items);
+      if (currentFocus >= items.length) currentFocus = 0;
+      if (currentFocus < 0) currentFocus = (items.length - 1);
+      items[currentFocus].classList.add('active');
+      items[currentFocus].scrollIntoView({ block: 'nearest' });
+    }
+    function removeActive(items) {
+      for (let i = 0; i < items.length; i++) items[i].classList.remove('active');
+    }
+    document.addEventListener('click', function(e) {
+      if (!searchInput.contains(e.target) && !searchDropdown.contains(e.target)) {
+        searchDropdown.classList.remove('show');
+      }
+    });
+
+    function setViewMode() {
+      contentArea.style.display = 'block';
+      editContainer.style.display = 'none';
+      historyContainer.style.display = 'none';
+      if (currentDocName === '대문') docActions.style.display = 'none';
+      else docActions.style.display = 'flex';
+    }
+
+    function enterEditMode(isNew = false) {
+      contentArea.style.display = 'none';
+      historyContainer.style.display = 'none';
+      editContainer.style.display = 'block';
+      docActions.style.display = 'none';
+      editorTextarea.value = isNew ? "" : currentRawText;
+    }
+
+    function cancelEdit() {
+      if(currentRawText === "") {
+        if (wikiCache.hasOwnProperty(currentDocName)) setViewMode();
+        else loadDocument('대문');
+      } else {
+        setViewMode();
+      }
+    }
+
+    const notFoundUI = `
+      <div class="wiki-error">
+        해당 문서가 존재하지 않습니다. (없는 항목)<br><br>
+        <button class="primary" style="padding: 10px 20px; font-size: 14px; font-weight:bold; cursor:pointer; background:var(--namu-green); color:white; border:none; border-radius:4px; display:inline-flex; align-items:center;" onclick="enterEditMode(true)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;">
+            <line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          새 문서 생성
+        </button>
+      </div>`;
+      
+    const deletedUI = `
+      <div class="wiki-error" style="background:#f8fafc; border-color:#cbd5e1; color:#475569;">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:12px; display:block; margin:0 auto 12px;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+        이 문서는 삭제 상태로 전환되었습니다.<br><br>
+        <span style="font-size:13.5px; font-weight:normal;">우측 상단의 <b>[역사]</b> 버튼을 눌러 이전 데이터를 복구하거나, <b>[편집]</b> 버튼을 통해 문서를 다시 작성할 수 있습니다.</span>
+      </div>`;
+
+    async function loadDocument(docName) {
+      if(!docName) docName = '대문'; 
+      docName = docName.replace(/\.txt$/i, ''); 
+      
+      if (currentDocName === docName && contentArea.style.display === 'block') return; 
+      currentDocName = docName;
+      
+      window.history.pushState({ doc: docName }, '', `?doc=${encodeURIComponent(docName)}`);
+      
+      docHeaderEl.style.display = 'flex';
+      docTitleEl.textContent = docName;
+      setViewMode();
+
+      try {
+        let rawText = "";
+        
+        if (docName === '대문') {
+          const url = `${GITHUB_RAW_BASE}${encodeURIComponent(docName)}.txt`;
+          const response = await fetch(url);
+          if (!response.ok) {
+            currentRawText = "";
+            contentArea.innerHTML = notFoundUI;
+            return;
+          }
+          rawText = await response.text();
+        } else {
+          if (wikiCache.hasOwnProperty(docName)) {
+            rawText = wikiCache[docName];
+            if (rawText === "") {
+              currentRawText = "";
+              contentArea.innerHTML = deletedUI;
+              return;
+            }
+          } else {
+            currentRawText = "";
+            contentArea.innerHTML = notFoundUI;
+            return;
+          }
+        }
+        
+        currentRawText = rawText;
+        contentArea.innerHTML = parseNamuWiki(rawText, docName);
+      } catch (error) {
+        console.error(error);
+        currentRawText = "";
+        contentArea.innerHTML = notFoundUI;
+      }
+    }
+
+    async function saveDocument() {
+      const newText = editorTextarea.value;
+      
+      if(!newText.trim()) { 
+        if(!confirm("내용이 모두 비워져 있습니다.\n이 문서를 [삭제] 상태로 전환하시겠습니까?\n\n(목록에서 숨겨지며, 추후 역사 버튼을 통해 내용을 복구할 수 있습니다.)")) {
+          return;
+        }
+      }
+      
+      showToast("저장 중입니다...");
+      try {
+        const formData = new URLSearchParams();
+        formData.append('action', 'save');
+        formData.append('name', currentDocName);
+        formData.append('content', newText);
+
+        const response = await fetch(GAS_WEB_APP_URL, {
+          method: 'POST',
+          body: formData
+        });
+        
+        const result = await response.text();
+        if(result === "SUCCESS") {
+          showToast("성공적으로 저장되었습니다.");
+          currentRawText = newText;
+          
+          wikiCache[currentDocName] = newText;
+          updateSidebarAndSearch();
+          
+          if (newText.trim() === "") contentArea.innerHTML = deletedUI;
+          else contentArea.innerHTML = parseNamuWiki(currentRawText, currentDocName);
+          
+          setViewMode();
+        } else {
+          alert("저장 실패: " + result);
+        }
+      } catch (e) {
+        alert("네트워크 오류로 저장하지 못했습니다.");
+      }
+    }
+
+    async function showHistoryMode() {
+      contentArea.style.display = 'none';
+      editContainer.style.display = 'none';
+      historyContainer.style.display = 'block';
+      docActions.style.display = 'flex';
+      
+      const listEl = document.getElementById('historyList');
+      listEl.innerHTML = "백업 목록을 불러오는 중...";
+
+      try {
+        const url = `${GAS_WEB_APP_URL}?action=history&name=${encodeURIComponent(currentDocName)}`;
+        const response = await fetch(url);
+        const historyData = await response.json();
+
+        if (historyData.length === 0) {
+          listEl.innerHTML = "이전 백업 내역이 없습니다.";
+          return;
+        }
+
+        listEl.innerHTML = "";
+        historyData.forEach(item => {
+          const dateStr = new Date(item.date).toLocaleString();
+          const div = document.createElement('div');
+          div.className = 'history-item';
+          div.innerHTML = `
+            <div>
+              <span class="history-time">${dateStr}</span>
+              <span class="history-name">${item.name}</span>
+            </div>
+            <button onclick="restoreDocument('${item.id}')" style="padding:6px 12px; cursor:pointer; border:1px solid #ccc; background:#fff; border-radius:4px;">이 버전으로 복구</button>
+          `;
+          listEl.appendChild(div);
+        });
+      } catch (e) {
+        listEl.innerHTML = "백업 내역을 불러오는데 실패했습니다.";
+      }
+    }
+
+    async function restoreDocument(fileId) {
+      if(!confirm("이 시점의 데이터로 문서를 덮어씌웁니다. 계속하시겠습니까? (현재 데이터도 백업됩니다)")) return;
+      
+      showToast("복구 중입니다...");
+      try {
+        const formData = new URLSearchParams();
+        formData.append('action', 'restore');
+        formData.append('name', currentDocName);
+        formData.append('fileId', fileId);
+
+        const response = await fetch(GAS_WEB_APP_URL, {
+          method: 'POST',
+          body: formData
+        });
+        
+        const result = await response.text();
+        if(result === "SUCCESS") {
+          showToast("문서가 성공적으로 복구되었습니다.");
+          
+          const readRes = await fetch(`${GAS_WEB_APP_URL}?action=read&name=${encodeURIComponent(currentDocName)}`);
+          const restoredText = await readRes.text();
+          
+          wikiCache[currentDocName] = restoredText;
+          updateSidebarAndSearch();
+          loadDocument(currentDocName);
+        } else {
+          alert("복구 실패: " + result);
+        }
+      } catch (e) {
+        alert("네트워크 오류로 복구하지 못했습니다.");
+      }
+    }
+
+    window.addEventListener('popstate', (e) => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const targetDoc = urlParams.get('doc') || '대문';
+      if (targetDoc !== currentDocName) loadDocument(targetDoc);
+    });
+
+    // --------------- 나무위키 파서 로직 ---------------
+    function stripMarkup(text) {
+      text = text.replace(/\[\[(?:[^|\]]+\|)?([^\]]+)\]\]/g, '$1');
+      text = text.replace(/\{\{\{[^\s]+\s+(.*?)\}\}\}/g, '$1');
+      text = text.replace(/\{\{\{([\s\S]*?)\}\}\}/g, '$1');
+      text = text.replace(/%%COPY"(.*?)"%%/g, '$1');
+      text = text.replace(/'''(.*?)'''/g, '$1');
+      text = text.replace(/''(.*?)''/g, '$1');
+      text = text.replace(/~~(.*?)~~/g, '$1');
+      text = text.replace(/--(.*?)--/g, '$1');
+      text = text.replace(/__(.*?)__/g, '$1');
+      text = text.replace(/\^\^(.*?)\^\^/g, '$1');
+      text = text.replace(/,,(.*?),,/g, '$1');
+      text = text.replace(/\[\[[bB][rR]\]\]|<br\s*\/?>/gi, ' ');
+      return text;
+    }
+
+    function parseNamuWiki(rawText, docName = '') {
+      if (docName === '대문' && rawText.includes('[!목록!]')) {
+        let listMarkup = '';
+        let validDocs = Object.keys(wikiCache).filter(d => d !== '대문' && wikiCache[d] !== "");
+        validDocs.sort();
+        
+        if (validDocs.length === 0) {
+          listMarkup = '현재 등록된 다른 문서가 없습니다.';
+        } else {
+          listMarkup = validDocs.map(doc => `* [[${doc}]]`).join('\n');
+        }
+        rawText = rawText.replace(/\[!목록!\]/g, listMarkup);
+      }
+
+      let lines = rawText.split(/\r?\n/);
+      let html = '';
+      let toc = [];
+      let footnotes = [];
+      let counters = [0, 0, 0, 0];
+      let inTable = false;
+      let listDepth = 0; 
+
+      function closeLists() {
+        while (listDepth > 0) { html += '</ul>'; listDepth--; }
+      }
+
+      function parseInline(text) {
+        text = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        text = text.replace(/\[\[[bB][rR]\]\]/g, '<br>');
+        text = text.replace(/\{\{\{([^+ -#][\s\S]*?)\}\}\}/g, '<code class="wiki-code">$1</code>');
+        text = text.replace(/\{\{\{#([a-zA-Z0-9]+)\s+(.*?)\}\}\}/g, (match, colorInfo, content) => {
+          let isHexCode = /^[0-9a-fA-F]{3,6}$/.test(colorInfo);
+          let finalColor = isHexCode ? '#' + colorInfo : colorInfo;
+          return `<span style="color: ${finalColor};">${content}</span>`;
+        });
+        text = text.replace(/\{\{\{\+2\s+([\s\S]*?)\}\}\}/g, '<span class="sz-plus-2">$1</span>');
+        text = text.replace(/\{\{\{\+1\s+([\s\S]*?)\}\}\}/g, '<span class="sz-plus-1">$1</span>');
+        text = text.replace(/\{\{\{-1\s+([\s\S]*?)\}\}\}/g, '<span class="sz-minus-1">$1</span>');
+        text = text.replace(/\{\{\{-2\s+([\s\S]*?)\}\}\}/g, '<span class="sz-minus-2">$1</span>');
+
+        text = text.replace(/'''(.*?)'''/g, '<strong>$1</strong>');
+        text = text.replace(/''(.*?)''/g, '<em>$1</em>');
+        text = text.replace(/~~(.*?)~~/g, '<del>$1</del>');
+        text = text.replace(/--(.*?)--/g, '<del>$1</del>');
+        text = text.replace(/__(.*?)__/g, '<u>$1</u>');
+        text = text.replace(/\^\^(.*?)\^\^/g, '<sup>$1</sup>');
+        text = text.replace(/,,(.*?),,/g, '<sub>$1</sub>');
+
+        text = text.replace(/\[\*\s*(.*?)\]/g, (match, noteContent) => {
+          footnotes.push(noteContent);
+          let noteIdx = footnotes.length;
+          return `<sup class="footnote-ref"><a href="#fn-${noteIdx}" id="fn-ref-${noteIdx}">[${noteIdx}]</a></sup>`;
+        });
+
+        const rawBase = 'https://raw.githubusercontent.com/daydream1530/thfm/';
+        const pagesBase = 'https://daydream1530.github.io/thfm/';
+
+        text = text.replace(/\[\[(?:파일|사진|image):([^\]]+)\]\]/gi, (match, path) => {
+          let imgUrl = path.startsWith('main/') ? rawBase + path : path;
+          return `<img src="${imgUrl}" class="wiki-image" alt="첨부 이미지">`;
+        });
+
+        function processLink(url, label) {
+          let targetUrl = url;
+          if (url.match(/\.html$/i) && !url.match(/^https?:\/\//i)) {
+            let cleanPath = url.replace(/^main\//i, '').replace(/^\/+/, '');
+            targetUrl = pagesBase + cleanPath;
+            return `<a href="${targetUrl}" target="_blank" rel="noopener noreferrer">${label}</a>`;
+          } 
+          else if (url.startsWith('main/')) {
+            targetUrl = rawBase + url;
+            return `<a href="${targetUrl}" target="_blank" rel="noopener noreferrer">${label}</a>`;
+          } 
+          else if (url.match(/^https?:\/\//i)) {
+            return `<a href="${url}" target="_blank" rel="noopener noreferrer">${label}</a>`;
+          }
+          let safeUrl = url.replace(/'/g, "\\'");
+          return `<a href="?doc=${encodeURIComponent(url)}" class="wiki-link" onclick="handleInternalLink(event, '${safeUrl}')">${label}</a>`;
+        }
+
+        text = text.replace(/\[\[([^|\]]+)\|([^\]]+)\]\]/g, (match, url, label) => processLink(url, label));
+        text = text.replace(/\[\[([^\]]+)\]\]/g, (match, url) => processLink(url, url));
+
+        text = text.replace(/%%COPY"(.*?)"%%/g, (match, p1) => {
+          let safeText = p1.replace(/'/g, "&#39;").replace(/"/g, "&quot;");
+          return `<span class="copyable-text" data-text="${safeText}" onclick="copyToClipboard(this.getAttribute('data-text'))" title="클릭하여 복사">${p1}</span>`;
+        });
+        return text;
+      }
+
+      for (let i = 0; i < lines.length; i++) {
+        let line = lines[i];
+        let listMatch = line.match(/^(\s*)\*\s+(.*)$/);
+        if (listMatch) {
+          if (inTable) { html += '</table>'; inTable = false; }
+          let spaces = listMatch[1].length;
+          let currentDepth = spaces + 1;
+          if (currentDepth > listDepth) {
+            while (listDepth < currentDepth) { html += '<ul class="wiki-list">'; listDepth++; }
+          } else if (currentDepth < listDepth) {
+            while (listDepth > currentDepth) { html += '</ul>'; listDepth--; }
+          }
+          html += `<li>${parseInline(listMatch[2])}</li>`;
+          continue;
+        } else {
+          closeLists();
+        }
+
+        if (line.trim().startsWith('----')) {
+          if (inTable) { html += '</table>'; inTable = false; }
+          html += '<hr>';
+          continue;
+        }
+
+        if (line.trim().startsWith('||`') || (line.trim().startsWith('||') && line.trim().endsWith('||'))) {
+          // 테이블 파싱
+          if (!inTable) { html += '<table class="wiki-table">'; inTable = true; }
+          let cellsText = line.trim().slice(2, -2);
+          let cells = cellsText.split('||');
+          
+          html += '<tr>';
+          cells.forEach(cell => {
+            let innerText = cell.trim();
+            let rowSpan = 1; let colSpan = 1;
+
+            let rsMatch = innerText.match(/^<\|(\d+)>\s*(.*)$/);
+            if (rsMatch) { rowSpan = parseInt(rsMatch[1], 10); innerText = rsMatch[2]; }
+            let csMatch = innerText.match(/^<-(\d+)>\s*(.*)$/);
+            if (csMatch) { colSpan = parseInt(csMatch[1], 10); innerText = csMatch[2]; }
+
+            let attrs = '';
+            if (rowSpan > 1) attrs += ` rowspan="${rowSpan}"`;
+            if (colSpan > 1) attrs += ` colspan="${colSpan}"`;
+            html += `<td${attrs}>${parseInline(innerText)}</td>`;
+          });
+          html += '</tr>';
+          continue;
+        } else if (inTable) {
+          html += '</table>'; inTable = false;
+        }
+
+        let headingMatch = line.match(/^(=+)\s*(.*?)\s*(=+)\s*$/);
+        if (headingMatch && headingMatch[1].length === headingMatch[3].length) {
+          let level = headingMatch[1].length;
+          let title = headingMatch[2];
+          if (level >= 1 && level <= 4) {
+            counters[level - 1]++;
+            for (let c = level; c < 4; c++) counters[c] = 0;
+            let numStr = counters.slice(0, level).join('.');
+            let anchorId = `s-${numStr.replace(/\./g, '-')}`; 
+            
+            let cleanTitle = stripMarkup(title); 
+            toc.push({ level, numStr, title: cleanTitle, anchorId });
+            
+            html += `<h${level + 1} class="wiki-h${level}" id="${anchorId}">
+                      <a href="#toc-box" class="h-index-link" title="목차로 돌아가기" onclick="event.preventDefault(); document.getElementById('toc-box')?.scrollIntoView({behavior: 'smooth'})"><span class="h-index">${numStr}.</span></a> ${parseInline(title)}
+                     </h${level + 1}>`;
+            continue;
+          }
+        }
+
+        if (line.trim().startsWith('>')) {
+          let quoteText = line.trim().replace(/^>\s?/, '');
+          html += `<blockquote>${parseInline(quoteText)}</blockquote>`;
+          continue;
+        }
+        if (line.trim() === '') { html += '<br>'; continue; }
+        html += `<p style="margin-bottom: 6px;">${parseInline(line)}</p>`;
+      }
+
+      if (inTable) { html += '</table>'; }
+      closeLists();
+
+      let tocHtml = '';
+      if (toc.length > 0) {
+        tocHtml += '<div class="toc-box" id="toc-box"><div class="toc-title">목차</div><ul class="toc-list">';
+        toc.forEach(item => {
+          let indentPx = (item.level - 1) * 20; 
+          tocHtml += `<li style="margin-left: ${indentPx}px;"><a href="#${item.anchorId}" onclick="event.preventDefault(); document.getElementById('${item.anchorId}')?.scrollIntoView({behavior: 'smooth'})">${item.numStr}. ${item.title}</a></li>`;
+        });
+        tocHtml += '</ul></div>';
+      }
+
+      let fnHtml = '';
+      if (footnotes.length > 0) {
+        fnHtml += '<div class="footnotes-section"><ol>';
+        footnotes.forEach((fn, idx) => {
+          let num = idx + 1;
+          fnHtml += `<li id="fn-${num}"><a href="#fn-ref-${num}">[^]</a> ${parseInline(fn)}</li>`;
+        });
+        fnHtml += '</ol></div>';
+      }
+
+      return tocHtml + html + fnHtml;
+    }
+
+    window.addEventListener('DOMContentLoaded', async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const initDoc = urlParams.get('doc');
+      
+      contentArea.innerHTML = '<div style="text-align:center; margin-top:50px;"><h3 style="color:#00a495; margin-bottom:10px;">위키 데이터를 동기화 중입니다...</h3><p style="color:#666; font-size:14px;">(최초 1회만 불러오며 이후에는 즉시 이동됩니다)</p></div>';
+      
+      await fetchAllWikiData();
+      loadDocument(initDoc);
+    });
+  </script>
+</body>
+</html>

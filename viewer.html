@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <!-- user-scalable=no 를 삭제하여 핀치 줌(확대 제스처) 허용 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF 뷰어</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <style>
+        body {
+            margin: 0; padding: 0; background-color: #333; color: white;
+            font-family: sans-serif;
+            /* overflow-x: hidden; 을 삭제하여 줌 인 했을 때 좌우로 스크롤 가능하게 함 */
+        }
+        
+        /* 툴바가 줌인해도 항상 화면 상단에 잘 고정되도록 수정 */
+        #toolbar {
+            background-color: #222; width: 100%; padding: 10px 5px;
+            position: fixed; top: 0; left: 0; z-index: 100;
+            display: flex; justify-content: space-between; align-items: center;
+            box-sizing: border-box; box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+        }
+        
+        .nav-group { display: flex; align-items: center; gap: 5px; }
+
+        button {
+            background: #555; color: white; border: none; padding: 8px 12px;
+            cursor: pointer; border-radius: 4px; font-weight: bold; font-size: 14px;
+        }
+        button:active { background: #777; }
+        .back-btn { background: #0366d6; }
+        
+        #page-select {
+            background: #444; color: white; border: 1px solid #666;
+            padding: 8px 10px; border-radius: 4px; font-size: 14px;
+            cursor: pointer; text-align: center;
+        }
+
+        /* 툴바에 캔버스가 가려지지 않도록 상단 여백 추가 */
+        #pdf-container {
+            margin-top: 55px;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+        }
+
+        #pdf-render { 
+            width: 100% !important; 
+            height: auto !important;
+            background: white; display: block;
+        }
+    </style>
+</head>
+<body>
+    <div id="toolbar">
+        <button class="back-btn" onclick="location.href='세대매뉴얼.html'">목록</button>
+        <div class="nav-group">
+            <button id="prev-page">◀</button>
+            <select id="page-select"></select>
+            <button id="next-page">▶</button>
+        </div>
+    </div>
+
+    <!-- 캔버스를 감싸는 컨테이너 추가 -->
+    <div id="pdf-container">
+        <canvas id="pdf-render"></canvas>
+    </div>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const pdfName = urlParams.get('file');
+
+        if (!pdfName) {
+            alert("파일이 지정되지 않았습니다.");
+            location.href = 'index.html';
+        } else {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+            let pdfDoc = null,
+                pageNum = 1,
+                pageIsRendering = false,
+                pageNumIsPending = null;
+
+            const canvas = document.getElementById('pdf-render'),
+                  ctx = canvas.getContext('2d'),
+                  pageSelect = document.getElementById('page-select');
+
+            const setupDropdown = (totalPages) => {
+                pageSelect.innerHTML = '';
+                for (let i = 1; i <= totalPages; i++) {
+                    let option = document.createElement('option');
+                    option.value = i;
+                    option.text = `${i} / ${totalPages} 쪽`;
+                    pageSelect.appendChild(option);
+                }
+                
+                pageSelect.addEventListener('change', (e) => {
+                    pageNum = parseInt(e.target.value);
+                    queueRenderPage(pageNum);
+                    window.scrollTo(0, 0);
+                });
+            };
+
+            const renderPage = num => {
+                pageIsRendering = true;
+                pdfDoc.getPage(num).then(page => {
+                    const unscaledViewport = page.getViewport({ scale: 1 });
+                    const scale = document.getElementById('pdf-container').clientWidth / unscaledViewport.width;
+                    const viewport = page.getViewport({ scale: scale });
+                    const outputScale = window.devicePixelRatio || 1;
+                    
+                    canvas.width = Math.floor(viewport.width * outputScale);
+                    canvas.height = Math.floor(viewport.height * outputScale);
+                    const transform = outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : null;
+
+                    const renderCtx = { canvasContext: ctx, viewport: viewport, transform: transform };
+                    
+                    page.render(renderCtx).promise.then(() => {
+                        pageIsRendering = false;
+                        if (pageNumIsPending !== null) {
+                            renderPage(pageNumIsPending);
+                            pageNumIsPending = null;
+                        }
+                    });
+                    
+                    pageSelect.value = num;
+                });
+            };
+
+            const queueRenderPage = num => {
+                if (pageIsRendering) { pageNumIsPending = num; } 
+                else { renderPage(num); }
+            };
+
+            document.getElementById('prev-page').addEventListener('click', () => {
+                if (pageNum <= 1) return;
+                pageNum--;
+                queueRenderPage(pageNum);
+                window.scrollTo(0, 0);
+            });
+
+            document.getElementById('next-page').addEventListener('click', () => {
+                if (pageNum >= pdfDoc.numPages) return;
+                pageNum++;
+                queueRenderPage(pageNum);
+                window.scrollTo(0, 0);
+            });
+
+            // 💡 핵심 버그 수정 파트
+            let currentWidth = window.innerWidth;
+            window.addEventListener('resize', () => { 
+                // 가로 폭이 실제로 바뀌었을 때만(가로모드 전환 등) 렌더링을 다시 함
+                // 스크롤로 인한 주소창 사라짐(세로 폭 변화)은 무시하여 리사이즈 버그 방지
+                if (window.innerWidth !== currentWidth) {
+                    currentWidth = window.innerWidth;
+                    if (pdfDoc) renderPage(pageNum); 
+                }
+            });
+
+            pdfjsLib.getDocument(pdfName).promise.then(pdfDoc_ => {
+                pdfDoc = pdfDoc_;
+                setupDropdown(pdfDoc.numPages);
+                renderPage(pageNum);
+            }).catch(err => {
+                alert("파일을 찾을 수 없습니다. (폴더나 파일명을 확인하세요)");
+            });
+        }
+    </script>
+</body>
+</html>

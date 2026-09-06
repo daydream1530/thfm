@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>세대 매뉴얼</title>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            padding: 20px; 
+            background-color: #f4f4f9; 
+            margin: 0; 
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        
+        /* 돌아가기 버튼 스타일 추가 */
+        .header-top {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            color: #475569;
+            background-color: #ffffff;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 15px;
+            padding: 8px 14px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            transition: all 0.2s;
+        }
+        .back-btn:hover {
+            background-color: #e2e8f0;
+            color: #0f172a;
+        }
+        .back-btn svg {
+            margin-right: 6px;
+        }
+
+        h1 { color: #333; border-bottom: 2px solid #ddd; padding-bottom: 10px; font-size: 24px; text-align: center; margin-top: 0; }
+        .pdf-list { list-style: none; padding: 0; margin-top: 20px; }
+        .pdf-list li { margin-bottom: 15px; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .pdf-list a { text-decoration: none; color: #0366d6; font-size: 16px; font-weight: bold; display: block; word-break: break-all; }
+        .pdf-list a:hover { color: #0052a3; text-decoration: underline; }
+        #loading { text-align: center; color: #666; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <!-- 상단 돌아가기 버튼 -->
+    <div class="header-top">
+        <a href="https://daydream1530.github.io/thfm/" class="back-btn">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+            돌아가기
+        </a>
+    </div>
+
+    <h1>📚 세대 매뉴얼</h1>
+    <div id="loading">PDF 목록을 불러오는 중입니다...</div>
+    <ul class="pdf-list" id="pdf-list"></ul>
+
+    <script>
+        const GITHUB_ID = 'daydream1530'; 
+        const REPO_NAME = 'thfm'; 
+        const FOLDER_NAME = 'pdfs';
+
+        const listElement = document.getElementById('pdf-list');
+        const loadingElement = document.getElementById('loading');
+
+        // GitHub API를 이용해 폴더 내의 파일 목록을 가져옵니다.
+        fetch(`https://api.github.com/repos/${GITHUB_ID}/${REPO_NAME}/contents/${FOLDER_NAME}`)
+            .then(response => {
+                if (!response.ok) throw new Error('폴더를 찾을 수 없거나 접근할 수 없습니다.');
+                return response.json();
+            })
+            .then(data => {
+                loadingElement.style.display = 'none';
+                
+                // 파일 목록 중 .pdf로 끝나는 파일만 골라냅니다.
+                const pdfFiles = data.filter(file => file.name.toLowerCase().endsWith('.pdf'));
+
+                if (pdfFiles.length === 0) {
+                    listElement.innerHTML = '<li>업로드된 PDF 파일이 없습니다.</li>';
+                    return;
+                }
+
+                // 자동으로 리스트(li) 태그를 생성합니다.
+                pdfFiles.forEach(file => {
+                    const li = document.createElement('li');
+                    const a = document.createElement('a');
+                    // 뷰어에 파일 경로(pdfs/파일명.pdf)를 통째로 넘겨줍니다.
+                    a.href = `viewer.html?file=${FOLDER_NAME}/${encodeURIComponent(file.name)}`;
+                    a.textContent = `📄 ${file.name}`;
+                    li.appendChild(a);
+                    listElement.appendChild(li);
+                });
+            })
+            .catch(error => {
+                loadingElement.textContent = "목록을 불러오는데 실패했습니다. 깃허브 아이디와 리포지토리 명을 확인하세요.";
+                console.error(error);
+            });
+    </script>
+</body>
+</html>
