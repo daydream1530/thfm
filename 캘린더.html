@@ -4,8 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>근무표 달력</title>
-    <!-- 공휴일 라이브러리 추가 -->
-    <script src="https://cdn.jsdelivr.net/npm/date-holidays/dist/date-holidays.min.js"></script>
     <style>
         :root {
             --primary-color: #7A86B6;
@@ -131,13 +129,13 @@
             font-weight: bold;
         }
 
-        /* 요일별 색상 */
+        /* 요일별 기본 색상 */
         .cell:nth-child(7n+1) .date-num { color: var(--sunday-color); }
         .cell:nth-child(7n) .date-num { color: var(--saturday-color); }
         
         /* 공휴일 텍스트 스타일 */
         .holiday-name {
-            font-size: 11px;
+            font-size: 12px;
             color: var(--sunday-color);
             font-weight: bold;
         }
@@ -236,7 +234,7 @@
 
     <div class="calendar-wrapper">
         <div class="calendar" id="calendarGrid">
-            <div style="text-align:center; padding: 40px; grid-column: 1/-1;">데이터를 불러오는 중입니다...</div>
+            <div id="loadingMsg" style="text-align:center; padding: 40px; grid-column: 1/-1;">데이터를 불러오는 중입니다...</div>
         </div>
     </div>
 
@@ -271,30 +269,45 @@
         const ENCODED_ID = "MU05ekFvWVNkYXY5SkxwVDVCa3VqWDdpU1JwbFNVZWtlZTRJdmlQQmo1Wk0=";
         const SHEET_ID = atob(ENCODED_ID); 
         
-        // 이름에 관계없이 사용할 파스텔 색상 팔레트
         const pastelPalette = ['#FFB3BA', '#BAE1FF', '#BAFFC9', '#FFFFBA', '#FFDFBA', '#E0BBE4', '#957DAD', '#D291BC'];
 
         let workers = []; 
         let baseDate = null; 
-        let currentDate = new Date(); // 달력 렌더링용 (현재 달)
-
-        // 에러 수정: window.Holidays -> window.DateHolidays
-        const hd = new window.DateHolidays('KR');
+        let currentDate = new Date(); 
         
-        // 버튼 이벤트
+        // 공휴일 API 데이터를 저장할 캐시 
+        let holidaysCache = {};
+
         function goBack() {
             window.location.href = "https://daydream1530.github.io/thfm/";
         }
 
-        function changeMonth(delta) {
+        async function changeMonth(delta) {
             currentDate.setMonth(currentDate.getMonth() + delta);
-            renderCalendar();
+            await renderCalendar();
         }
 
         function getPastelColor(name) {
             const index = workers.indexOf(name);
             if (index === -1) return '#E2E8F0'; 
             return pastelPalette[index % pastelPalette.length];
+        }
+
+        // 특정 연도의 한국 공휴일을 API로 불러오는 함수
+        async function fetchHolidaysForYear(year) {
+            if (holidaysCache[year]) return; // 이미 불러왔으면 패스
+            try {
+                const res = await fetch(`https://date.nager.at/api/v3/PublicHolidays/${year}/KR`);
+                const data = await res.json();
+                let yearHolidays = {};
+                data.forEach(h => {
+                    yearHolidays[h.date] = h.localName; // h.date 형식: "YYYY-MM-DD"
+                });
+                holidaysCache[year] = yearHolidays;
+            } catch (error) {
+                console.error(`[${year}년] 휴일 데이터를 불러오지 못했습니다.`, error);
+                holidaysCache[year] = {};
+            }
         }
 
         async function fetchSheetData() {
@@ -330,7 +343,7 @@
             } catch (error) {
                 console.error("데이터 로드 실패:", error);
             } finally {
-                renderCalendar();
+                await renderCalendar();
             }
         }
 
@@ -348,21 +361,32 @@
             return workers[dutyIdx];
         }
 
-        // 특정 날짜가 공휴일인지 확인하는 함수
         function getHolidayName(d) {
-            const yearHolidays = hd.getHolidays(d.getFullYear());
-            const targetDateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            const dateStr = `${y}-${m}-${day}`;
             
-            // public 타입(법정공휴일)이면서 날짜가 일치하는 항목 찾기
-            const holiday = yearHolidays.find(h => h.date.startsWith(targetDateStr) && h.type === 'public');
-            return holiday ? holiday.name : null;
+            if (holidaysCache[y] && holidaysCache[y][dateStr]) {
+                return holidaysCache[y][dateStr];
+            }
+            return null;
         }
 
-        function renderCalendar() {
+        async function renderCalendar() {
             const year = currentDate.getFullYear();
             const month = currentDate.getMonth();
             
             document.getElementById('monthTitle').textContent = `${year}년 ${month + 1}월`;
+            
+            // 달력을 그리기 전, 해당 연도의 공휴일 정보를 비동기로 불러옵니다.
+            // (혹시 전월/익월이 걸쳐있을 수 있으므로 안전하게 현재연도 앞뒤 1년씩 전부 불러옵니다)
+            await Promise.all([
+                fetchHolidaysForYear(year - 1),
+                fetchHolidaysForYear(year),
+                fetchHolidaysForYear(year + 1)
+            ]);
+
             const grid = document.getElementById('calendarGrid');
             grid.innerHTML = ''; 
 
@@ -390,7 +414,6 @@
                     cellDiv.classList.add('other-month');
                 }
 
-                // 날짜와 공휴일 텍스트를 감싸는 Wrapper
                 const dateWrapper = document.createElement('div');
                 dateWrapper.className = 'date-wrapper';
 
@@ -399,11 +422,9 @@
                 dateNum.textContent = cellDate.getDate();
                 dateWrapper.appendChild(dateNum);
 
-                // 공휴일 정보 가져와서 적용
                 const holidayName = getHolidayName(cellDate);
                 if (holidayName) {
-                    cellDiv.classList.add('is-holiday'); // 셀을 공휴일로 처리(글자 빨간색)
-                    
+                    cellDiv.classList.add('is-holiday');
                     const holiSpan = document.createElement('span');
                     holiSpan.className = 'holiday-name';
                     holiSpan.textContent = holidayName;
@@ -418,15 +439,15 @@
                     tomorrowDate.setDate(tomorrowDate.getDate() + 1);
                     const dayShiftName = getDutyName(tomorrowDate);
 
-                    // 당직은 무조건 렌더링
+                    // --- [당직]은 무조건 렌더링 ---
                     const dutyDiv = document.createElement('div');
                     dutyDiv.className = 'schedule-item';
                     dutyDiv.textContent = `당직: ${dutyName}`;
                     dutyDiv.style.backgroundColor = getPastelColor(dutyName); 
                     cellDiv.appendChild(dutyDiv);
 
-                    // 주말(0: 일요일, 6: 토요일)이 아니고, 공휴일도 아닐 때만 주간 렌더링
-                    const isWeekend = cellDate.getDay() === 0 || cellDate.getDay() === 6;
+                    // --- [주간]은 주말(토,일)과 공휴일이 아닐 때만 렌더링 ---
+                    const isWeekend = (cellDate.getDay() === 0 || cellDate.getDay() === 6);
                     
                     if (!isWeekend && !holidayName) {
                         const dayShiftDiv = document.createElement('div');
@@ -483,7 +504,7 @@
 
             baseDate = datesForEdit[0];
             workers = newWorkers.map(w => w.name);
-            renderCalendar();
+            await renderCalendar();
             closeModal();
 
             try {
@@ -501,6 +522,7 @@
             }
         }
 
+        // 앱 시작
         fetchSheetData();
 
     </script>
