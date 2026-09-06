@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>근무표 달력</title>
+    <!-- 공휴일 라이브러리 추가 -->
+    <script src="https://cdn.jsdelivr.net/npm/date-holidays/dist/date-holidays.min.js"></script>
     <style>
         :root {
             --primary-color: #7A86B6;
@@ -117,20 +119,39 @@
             gap: 6px;
         }
 
-        .date-num {
-            font-size: 16px;
-            font-weight: bold;
+        .date-wrapper {
+            display: flex;
+            align-items: baseline;
+            gap: 6px;
             margin-bottom: 4px;
         }
 
+        .date-num {
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        /* 요일별 색상 */
         .cell:nth-child(7n+1) .date-num { color: var(--sunday-color); }
         .cell:nth-child(7n) .date-num { color: var(--saturday-color); }
+        
+        /* 공휴일 텍스트 스타일 */
+        .holiday-name {
+            font-size: 11px;
+            color: var(--sunday-color);
+            font-weight: bold;
+        }
+
+        /* 셀 전체가 공휴일일 때 날짜를 무조건 빨간색으로 */
+        .cell.is-holiday .date-num {
+            color: var(--sunday-color) !important;
+        }
 
         /* 다른 달 회색 처리 */
         .cell.other-month {
             background-color: #F8FAFC;
         }
-        .cell.other-month .date-num {
+        .cell.other-month .date-num, .cell.other-month .holiday-name {
             color: #E2E8F0 !important;
         }
         .cell.other-month .schedule-item {
@@ -244,9 +265,9 @@
 
     <script>
         // ------------------ 설정 ------------------
-        // ★ 1단계(이전 답변)에서 생성한 Google Apps Script 웹 앱 URL을 아래에 넣어주세요. ★
+        // ★ 문자열 중간에 변수를 넣을 때는 백틱(`)을 사용해야 정상 작동합니다! ★
         const ENCODED_URL = "QUtmeWNieGVoeE4zaXd2NU5udUZSdGQxOVpXZWZVbFNDZEU1WHB2UXVMa3Ntems4ZXhGc1duSzF1QW5OemJHX0N2cXFaTnAx";
-        const WEB_APP_URL = "https://script.google.com/macros/s/{atob(ENCODED_URL)}/exec";
+        const WEB_APP_URL = `https://script.google.com/macros/s/${atob(ENCODED_URL)}/exec`;
         
         const ENCODED_ID = "MU05ekFvWVNkYXY5SkxwVDVCa3VqWDdpU1JwbFNVZWtlZTRJdmlQQmo1Wk0=";
         const SHEET_ID = atob(ENCODED_ID); 
@@ -257,6 +278,9 @@
         let workers = []; 
         let baseDate = null; 
         let currentDate = new Date(); // 달력 렌더링용 (현재 달)
+
+        // 휴일 라이브러리 초기화 (한국)
+        const hd = new window.Holidays('KR');
         
         // 버튼 이벤트
         function goBack() {
@@ -268,10 +292,9 @@
             renderCalendar();
         }
 
-        // 특정 이름의 고유 인덱스를 찾아 색상 팔레트에서 배정
         function getPastelColor(name) {
             const index = workers.indexOf(name);
-            if (index === -1) return '#E2E8F0'; // 목록에 없는 이름일 경우 기본 회색
+            if (index === -1) return '#E2E8F0'; 
             return pastelPalette[index % pastelPalette.length];
         }
 
@@ -318,13 +341,22 @@
             return Math.floor((utc2 - utc1) / (1000 * 60 * 60 * 24));
         }
 
-        // 당직자 구하기 함수
         function getDutyName(targetDate) {
             if (!baseDate || workers.length === 0) return "";
             const diffDays = getDaysDiff(targetDate);
             const n = workers.length;
             const dutyIdx = ((diffDays % n) + n) % n;
             return workers[dutyIdx];
+        }
+
+        // 특정 날짜가 공휴일인지 확인하는 함수
+        function getHolidayName(d) {
+            const yearHolidays = hd.getHolidays(d.getFullYear());
+            const targetDateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+            
+            // public 타입(법정공휴일)이면서 날짜가 일치하는 항목 찾기
+            const holiday = yearHolidays.find(h => h.date.startsWith(targetDateStr) && h.type === 'public');
+            return holiday ? holiday.name : null;
         }
 
         function renderCalendar() {
@@ -359,10 +391,27 @@
                     cellDiv.classList.add('other-month');
                 }
 
+                // 날짜와 공휴일 텍스트를 감싸는 Wrapper
+                const dateWrapper = document.createElement('div');
+                dateWrapper.className = 'date-wrapper';
+
                 const dateNum = document.createElement('div');
                 dateNum.className = 'date-num';
                 dateNum.textContent = cellDate.getDate();
-                cellDiv.appendChild(dateNum);
+                dateWrapper.appendChild(dateNum);
+
+                // 공휴일 정보 가져와서 적용
+                const holidayName = getHolidayName(cellDate);
+                if (holidayName) {
+                    cellDiv.classList.add('is-holiday'); // 셀을 공휴일로 처리(글자 빨간색)
+                    
+                    const holiSpan = document.createElement('span');
+                    holiSpan.className = 'holiday-name';
+                    holiSpan.textContent = holidayName;
+                    dateWrapper.appendChild(holiSpan);
+                }
+
+                cellDiv.appendChild(dateWrapper);
 
                 if (baseDate && workers.length > 0) {
                     const dutyName = getDutyName(cellDate);
@@ -373,13 +422,13 @@
                     const dutyDiv = document.createElement('div');
                     dutyDiv.className = 'schedule-item';
                     dutyDiv.textContent = `당직: ${dutyName}`;
-                    dutyDiv.style.backgroundColor = getPastelColor(dutyName); // 동적 색상 적용
+                    dutyDiv.style.backgroundColor = getPastelColor(dutyName); 
                     cellDiv.appendChild(dutyDiv);
 
                     const dayShiftDiv = document.createElement('div');
                     dayShiftDiv.className = 'schedule-item';
                     dayShiftDiv.textContent = `주간: ${dayShiftName}`;
-                    dayShiftDiv.style.backgroundColor = getPastelColor(dayShiftName); // 동적 색상 적용
+                    dayShiftDiv.style.backgroundColor = getPastelColor(dayShiftName); 
                     cellDiv.appendChild(dayShiftDiv);
                 }
                 grid.appendChild(cellDiv);
@@ -387,10 +436,10 @@
         }
 
         // --- 모달 팝업 및 수정 로직 ---
-        let datesForEdit = []; // [어제, 오늘, 내일] Date 객체 저장
+        let datesForEdit = []; 
 
         function formatDate(d) {
-            return `${d.getFullYear()}. ${d.getMonth()+1}. ${d.getDate()}`;
+            return `${d.getFullYear()}. ${d.getMonth()+1}.${d.getDate()}`;
         }
 
         function openModal() {
@@ -416,7 +465,7 @@
         }
 
         async function saveChanges() {
-            if (WEB_APP_URL === "여기에_웹앱_URL을_붙여넣으세요") {
+            if (WEB_APP_URL.includes("여기에_웹앱_URL을_붙여넣으세요")) {
                 alert("구글 앱스 스크립트(Web App) URL이 설정되지 않았습니다.\n코드 상단의 WEB_APP_URL을 수정해주세요.");
                 return;
             }
@@ -427,13 +476,11 @@
                 { date: formatDate(datesForEdit[2]), name: document.getElementById('inpTomo').value }
             ];
 
-            // UI 화면 즉시 반영을 위해 기존 workers 배열 교체
             baseDate = datesForEdit[0];
             workers = newWorkers.map(w => w.name);
             renderCalendar();
             closeModal();
 
-            // 백엔드(구글 시트)에 POST 전송
             try {
                 const response = await fetch(WEB_APP_URL, {
                     method: 'POST',
