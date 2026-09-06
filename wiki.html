@@ -289,10 +289,33 @@
       loadDocument(docName);
     }
 
+    const SHEET_ID = atob("MTNVUlN6TkF0OFRtajFJX3lTZmw3VFpqRUhGN2hEaTJkcVZBVjMweTg2eDQ=");
+    const DIRECT_READ_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=문서`;
+
     async function fetchAllWikiData() {
       try {
-        const response = await fetch(`${GAS_WEB_APP_URL}?action=getAll`);
-        wikiCache = await response.json();
+        // GAS 서버를 안 거치고 구글 시트에서 직접 JSON을 쏴줍니다. (엄청 빠름)
+        const response = await fetch(DIRECT_READ_URL);
+        const text = await response.text();
+        
+        // 구글 내부 API가 감싸놓은 불필요한 껍데기 텍스트를 벗겨냅니다.
+        const jsonString = text.substring(text.indexOf('{'), text.lastIndexOf('}') + 1);
+        const json = JSON.parse(jsonString);
+        
+        wikiCache = {};
+        
+        // A열(c[0]) = 문서 이름, B열(c[1]) = 내용
+        if (json.table && json.table.rows) {
+          json.table.rows.forEach(row => {
+            if (row.c[0] && row.c[0].v) { // A열에 값이 있으면
+              const title = row.c[0].v;
+              // B열 값이 없으면 빈 문자열("") 처리
+              const content = (row.c[1] && row.c[1].v) ? row.c[1].v : ""; 
+              wikiCache[title] = content;
+            }
+          });
+        }
+        
         updateSidebarAndSearch();
       } catch (error) {
         console.error(error);
