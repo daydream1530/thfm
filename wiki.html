@@ -506,6 +506,13 @@
     async function saveDocument() {
       const newText = editorTextarea.value;
       
+      // 🌟 추가된 로직: 기존 원문과 완전히 동일하면 저장 과정을 생략합니다.
+      if (newText === currentRawText) {
+        showToast("변경된 내용이 없어 저장을 취소했습니다.");
+        setViewMode();
+        return;
+      }
+      
       if(!newText.trim()) { 
         if(!confirm("내용이 모두 비워져 있습니다.\n이 문서를 [삭제] 상태로 전환하시겠습니까?\n\n(목록에서 숨겨지며, 추후 역사 버튼을 통해 내용을 복구할 수 있습니다.)")) {
           return;
