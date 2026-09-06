@@ -262,38 +262,10 @@
 
     <!-- ESM 방식 지원을 위해 module 타입으로 스크립트 작성 -->
     <script type="module">
-        // --- ESM 모듈로 공휴일 데이터 바로 가져오기 ---
-        // unpkg나 jsdelivr를 통해 npm에 등록된 holidays-kr 패키지 로드
-        let kHolidays = [];
-        try {
-            // 패키지에서 제공하는 JSON을 직접 가져옵니다. (경로는 패키지 구조에 따라 다를 수 있음)
-            // 만약 텍스트 호스팅 주소가 따로 있다면 이 URL만 교체하면 됩니다.
-            const response = await fetch('https://cdn.jsdelivr.net/npm/holidays-kr/data/holidays.json');
-            if (response.ok) {
-                kHolidays = await response.json(); 
-            }
-        } catch (error) {
-            console.error("공휴일 데이터를 불러오지 못했습니다.", error);
-        }
+        // 네가 찾은 holidays-kr 패키지를 jsDelivr ESM CDN을 통해 브라우저에서 바로 로드
+        import * as holidaysKr from 'https://cdn.jsdelivr.net/npm/@hyunbinseo/holidays-kr/+esm';
 
-        // 특정 날짜가 공휴일인지 확인하는 헬퍼 함수
-        function getHolidayName(d) {
-            const y = d.getFullYear();
-            const m = String(d.getMonth() + 1).padStart(2, '0');
-            const day = String(d.getDate()).padStart(2, '0');
-            const dateStr = `${y}-${m}-${day}`;
-            
-            // kHolidays 배열이나 객체 형태에 맞춰 검색 (예시: 배열 내 객체 찾기)
-            if (Array.isArray(kHolidays)) {
-                const holiday = kHolidays.find(h => h.date === dateStr || h === dateStr);
-                return holiday ? (holiday.name || "공휴일") : null;
-            } else if (typeof kHolidays === 'object') {
-                return kHolidays[dateStr] || null;
-            }
-            return null;
-        }
-
-        // ------------------ 기존 설정 ------------------
+        // ------------------ 설정 ------------------
         const ENCODED_URL = "QUtmeWNieGVoeE4zaXd2NU5udUZSdGQxOVpXZWZVbFNDZEU1WHB2UXVMa3Ntems4ZXhGc1duSzF1QW5OemJHX0N2cXFaTnAx";
         const WEB_APP_URL = `https://script.google.com/macros/s/${atob(ENCODED_URL)}/exec`;
         
@@ -306,6 +278,7 @@
         let baseDate = null; 
         let currentDate = new Date(); 
         
+        // 버튼 이벤트들을 모듈 외부(HTML)에서 쓸 수 있도록 전역(window) 객체에 등록
         window.goBack = function() {
             window.location.href = "https://daydream1530.github.io/thfm/";
         }
@@ -319,6 +292,31 @@
             const index = workers.indexOf(name);
             if (index === -1) return '#E2E8F0'; 
             return pastelPalette[index % pastelPalette.length];
+        }
+
+        // --- 공휴일 판별 함수 (holidays-kr 연동) ---
+        function getHolidayName(d) {
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            const dateStr = `${y}-${m}-${day}`;
+            
+            // 1. 해당 패키지는 y2025, y2026 같은 객체를 내보내므로 이를 활용
+            const yearData = holidaysKr[`y${y}`];
+            if (yearData && (dateStr in yearData)) {
+                // 키가 존재하면 해당 명칭을 문자열로 반환하고, 아니면 '공휴일' 반환
+                return typeof yearData[dateStr] === 'string' ? yearData[dateStr] : '공휴일';
+            }
+
+            // 2. 만일 getHolidayNames API가 존재한다면 방어적으로 사용
+            if (typeof holidaysKr.getHolidayNames === 'function') {
+                try {
+                    const names = holidaysKr.getHolidayNames(new Date(y, d.getMonth(), d.getDate()));
+                    if (names && names.length > 0) return Array.isArray(names) ? names.join(', ') : names;
+                } catch(e) {}
+            }
+            
+            return null;
         }
 
         async function fetchSheetData() {
@@ -430,14 +428,14 @@
                     tomorrowDate.setDate(tomorrowDate.getDate() + 1);
                     const dayShiftName = getDutyName(tomorrowDate);
 
-                    // --- [당직]은 무조건 렌더링 ---
+                    // --- [당직]은 무조건 표시 ---
                     const dutyDiv = document.createElement('div');
                     dutyDiv.className = 'schedule-item';
                     dutyDiv.textContent = `당직: ${dutyName}`;
                     dutyDiv.style.backgroundColor = getPastelColor(dutyName); 
                     cellDiv.appendChild(dutyDiv);
 
-                    // --- [주간]은 주말(토,일)과 공휴일이 아닐 때만 렌더링 ---
+                    // --- [주간]은 주말(토,일)과 공휴일이 아닐 때만 표시 ---
                     const isWeekend = (cellDate.getDay() === 0 || cellDate.getDay() === 6);
                     
                     if (!isWeekend && !holidayName) {
@@ -452,7 +450,6 @@
             }
         }
 
-        // 모달 관련 함수도 전역(window)으로 등록해야 HTML onclick에서 인식됨
         let datesForEdit = []; 
 
         function formatDate(d) {
@@ -515,7 +512,6 @@
 
         // 앱 시작
         fetchSheetData();
-
     </script>
 </body>
 </html>
