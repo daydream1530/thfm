@@ -1,11 +1,4 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>근무표 달력</title>
-    <style>
-        :root {
+:root {
             --primary-color: #7A86B6;
             --bg-color: #F8F9FA;
             --cell-bg: #FFFFFF;
@@ -50,6 +43,8 @@
             font-weight: bold;
             cursor: pointer;
             transition: background 0.2s;
+            white-space: nowrap; /* 버튼 텍스트 줄바꿈 방지 */
+            flex-shrink: 0;
         }
 
         .header button:hover { background-color: #5C6799; }
@@ -64,8 +59,9 @@
             margin: 0;
             font-size: 24px;
             color: #333;
-            min-width: 150px;
+            min-width: 120px;
             text-align: center;
+            white-space: nowrap;
         }
 
         .month-controls button {
@@ -73,6 +69,7 @@
             color: var(--primary-color);
             font-size: 20px;
             padding: 5px 10px;
+            flex-shrink: 0;
         }
 
         .month-controls button:hover { background: #EDF2F7; }
@@ -92,6 +89,7 @@
             grid-template-columns: repeat(7, 1fr);
             border-top: 1px solid var(--border-color);
             border-left: 1px solid var(--border-color);
+            width: 100%;
         }
 
         .weekday {
@@ -116,6 +114,8 @@
             display: flex;
             flex-direction: column;
             gap: 6px;
+            min-width: 0; /* 🌟 핵심: 텍스트가 길어도 셀 너비가 강제로 늘어나지 않도록 방어 */
+            overflow: hidden;
         }
 
         .cell.today {
@@ -127,6 +127,7 @@
             align-items: baseline;
             gap: 6px;
             margin-bottom: 4px;
+            flex-wrap: wrap; /* 휴일 이름이 길면 밑으로 내려가도록 처리 */
         }
 
         .date-num {
@@ -138,9 +139,13 @@
         .cell:nth-child(7n) .date-num { color: var(--saturday-color); }
         
         .holiday-name {
-            font-size: 12px;
+            font-size: 11px;
             color: var(--sunday-color);
             font-weight: bold;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
         }
 
         .cell.is-holiday .date-num { color: var(--sunday-color) !important; }
@@ -153,12 +158,16 @@
             box-shadow: none;
         }
 
+        /* 🌟 스케줄 블록 말줄임표 처리 (모든 해상도 공통 적용) */
         .schedule-item {
             font-size: 13px;
             padding: 4px 6px;
             border-radius: 4px;
             color: #333;
             font-weight: bold;
+            white-space: nowrap;     /* 한 줄로 표시 */
+            overflow: hidden;        /* 넘치는 텍스트 숨김 */
+            text-overflow: ellipsis; /* 숨겨진 텍스트를 '...'으로 표시 */
         }
 
         /* 모달 팝업 스타일 */
@@ -188,362 +197,39 @@
         .btn-confirm { background: var(--primary-color); color: white; }
         .btn-cancel { background: #E2E8F0; color: #475569; }
 
-        /* --- 모바일 화면 대응 (화면 너비 600px 이하일 때 무조건 비례 축소) --- */
-        @media (max-width: 600px) {
-            body {
-                padding: 2vw; /* 외부 여백도 화면 비율로 */
-            }
-
-            .header {
-                padding: 2vw;
-                gap: 1vw;
-            }
-            .header button {
-                padding: 1.5vw 2vw;
-                font-size: 3.2vw; /* 버튼 글자 크기 축소 */
-                white-space: nowrap; 
-            }
-            .month-controls {
-                gap: 2vw;
-            }
-            .month-controls h2 {
-                font-size: 4.5vw; /* 연/월 텍스트 축소 */
-                min-width: auto;    
-            }
-            .month-controls button {
-                font-size: 5vw;
-                padding: 1vw;
-            }
-
-            .calendar-wrapper {
-                width: 100%;
-                overflow: hidden; /* 가로 스크롤 절대 방지 */
-            }
-            .calendar {
-                width: 100%;
-            }
-
-            .weekday {
-                padding: 2vw 0;
-                font-size: 3.2vw; /* 요일 글자 크기 축소 */
-            }
+        /* --- 768px 이하 (태블릿 및 모바일) 반응형 --- */
+        @media (max-width: 768px) {
+            body { padding: 10px; }
+            .header { padding: 10px; }
+            .month-controls h2 { font-size: 20px; min-width: 100px; }
+            
             .cell {
-                min-height: 15vw; /* 셀 높이도 비율로 */
-                padding: 1vw;        
-                gap: 1vw;
+                min-height: 80px;
+                padding: 6px 4px;
             }
-            .date-num {
-                font-size: 3.5vw;
+            .weekday {
+                padding: 10px 0;
+                font-size: 14px;
             }
-
             .schedule-item {
-                font-size: 2.4vw; /* 근무자 이름 크기 (화면 폭의 2.4%) */
-                padding: 0.8vw 0.5vw;        
-                letter-spacing: -1px;  /* 글자 사이 간격을 좁힘 */
-                text-align: center;
-                white-space: nowrap;     
-                overflow: hidden;        
-                text-overflow: ellipsis; 
+                font-size: 11px;
+                padding: 3px 4px;
+                letter-spacing: -0.5px;
             }
-            .holiday-name {
-                font-size: 2.2vw;
+            .date-num { font-size: 14px; }
+        }
+
+        /* --- 480px 이하 (작은 모바일) 추가 축소 --- */
+        @media (max-width: 480px) {
+            body { padding: 5px; }
+            .header button { padding: 8px 10px; font-size: 13px; }
+            .month-controls h2 { font-size: 18px; }
+            
+            .cell { min-height: 65px; gap: 4px; }
+            .weekday { padding: 8px 0; font-size: 12px; }
+            .schedule-item {
+                font-size: 9px;
+                padding: 2px;
                 letter-spacing: -1px;
             }
         }
-    </style>
-</head>
-<body>
-
-    <div class="header">
-        <button onclick="goBack()">돌아가기</button>
-        <div class="month-controls">
-            <button onclick="changeMonth(-1)">&#9664;</button>
-            <h2 id="monthTitle">YYYY년 M월</h2>
-            <button onclick="changeMonth(1)">&#9654;</button>
-        </div>
-        <button onclick="openModal()">수정</button>
-    </div>
-
-    <div class="calendar-wrapper">
-        <div class="calendar" id="calendarGrid">
-            <div id="loadingMsg" style="text-align:center; padding: 40px; grid-column: 1/-1;">데이터를 불러오는 중입니다...</div>
-        </div>
-    </div>
-
-    <!-- 수정 모달 팝업 -->
-    <div class="modal-overlay" id="editModal">
-        <div class="modal-content">
-            <h3>당직 근무자 수정</h3>
-            <div class="edit-row">
-                <label id="lblYest">어제 (-.-)</label>
-                <input type="text" id="inpYest">
-            </div>
-            <div class="edit-row">
-                <label id="lblToda">오늘 (-.-)</label>
-                <input type="text" id="inpToda">
-            </div>
-            <div class="edit-row">
-                <label id="lblTomo">내일 (-.-)</label>
-                <input type="text" id="inpTomo">
-            </div>
-            <div class="modal-buttons">
-                <button class="btn-confirm" onclick="saveChanges()">확인</button>
-                <button class="btn-cancel" onclick="closeModal()">취소</button>
-            </div>
-        </div>
-    </div>
-
-    <script type="module">
-        import { getHolidayPreset } from 'https://cdn.jsdelivr.net/npm/@hyunbinseo/holidays-kr/+esm';
-
-        const ENCODED_URL = "QUtmeWNieGVoeE4zaXd2NU5udUZSdGQxOVpXZWZVbFNDZEU1WHB2UXVMa3Ntems4ZXhGc1duSzF1QW5OemJHX0N2cXFaTnAx";
-        const WEB_APP_URL = `https://script.google.com/macros/s/${atob(ENCODED_URL)}/exec`;
-        const ENCODED_ID = "MU05ekFvWVNkYXY5SkxwVDVCa3VqWDdpU1JwbFNVZWtlZTRJdmlQQmo1Wk0=";
-        const SHEET_ID = atob(ENCODED_ID); 
-        
-        const pastelPalette = ['#FFB3BA', '#BAE1FF', '#BAFFC9', '#FFFFBA', '#FFDFBA', '#E0BBE4', '#957DAD', '#D291BC'];
-
-        let workers = []; 
-        let baseDate = null; 
-        let currentDate = new Date(); 
-        
-        const holidayCache = {};
-
-        window.goBack = function() {
-            window.location.href = "https://daydream1530.github.io/thfm/";
-        }
-
-        window.changeMonth = async function(delta) {
-            currentDate.setMonth(currentDate.getMonth() + delta);
-            await renderCalendar();
-        }
-
-        function getPastelColor(name) {
-            const index = workers.indexOf(name);
-            return index === -1 ? '#E2E8F0' : pastelPalette[index % pastelPalette.length];
-        }
-
-        async function loadHolidayPreset(year) {
-            if (!holidayCache[year]) {
-                try {
-                    holidayCache[year] = await getHolidayPreset(String(year));
-                } catch (e) {
-                    console.warn(`[${year}년] 휴일 데이터를 찾을 수 없습니다. (RangeError 방어)`);
-                    holidayCache[year] = {}; 
-                }
-            }
-        }
-
-        function getHolidayName(d) {
-            const y = d.getFullYear();
-            const m = String(d.getMonth() + 1).padStart(2, '0');
-            const day = String(d.getDate()).padStart(2, '0');
-            const dateStr = `${y}-${m}-${day}`;
-            
-            if (holidayCache[y] && holidayCache[y][dateStr]) {
-                return holidayCache[y][dateStr].join(', ');
-            }
-            return null;
-        }
-
-        async function fetchSheetData() {
-            const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json`;
-            try {
-                const response = await fetch(url);
-                const text = await response.text();
-                const jsonStr = text.match(/google\.visualization\.Query\.setResponse\(([\s\S\w]+)\);/)[1];
-                const data = JSON.parse(jsonStr);
-                
-                let entries = [];
-                data.table.rows.forEach(row => {
-                    if (row.c[0] && row.c[1]) {
-                        let rawStr = row.c[0].f || row.c[0].v;
-                        let d = null;
-                        if (typeof rawStr === 'string' && rawStr.includes('Date')) {
-                            const match = rawStr.match(/Date\((\d+),\s*(\d+),\s*(\d+)/);
-                            if (match) d = new Date(match[1], match[2], match[3]);
-                        } else if (typeof rawStr === 'string') {
-                            const match = rawStr.match(/(\d{4})\D+(\d{1,2})\D+(\d{1,2})/);
-                            if (match) d = new Date(match[1], match[2] - 1, match[3]);
-                        }
-                        if (d) entries.push({ date: d, name: row.c[1].v });
-                    }
-                });
-
-                entries.sort((a, b) => a.date - b.date);
-                if (entries.length > 0) {
-                    baseDate = entries[0].date;
-                    workers = entries.map(e => e.name); 
-                }
-            } catch (error) {
-                console.error("스프레드시트 데이터 로드 실패:", error);
-            } finally {
-                await renderCalendar();
-            }
-        }
-
-        function getDaysDiff(targetDate) {
-            const utc1 = Date.UTC(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate());
-            const utc2 = Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
-            return Math.floor((utc2 - utc1) / (1000 * 60 * 60 * 24));
-        }
-
-        function getDutyName(targetDate) {
-            if (!baseDate || workers.length === 0) return "";
-            const diffDays = getDaysDiff(targetDate);
-            const n = workers.length;
-            const dutyIdx = ((diffDays % n) + n) % n;
-            return workers[dutyIdx];
-        }
-
-        async function renderCalendar() {
-            const year = currentDate.getFullYear();
-            const month = currentDate.getMonth();
-            
-            document.getElementById('monthTitle').textContent = `${year}년 ${month + 1}월`;
-
-            await Promise.all([
-                loadHolidayPreset(year - 1),
-                loadHolidayPreset(year),
-                loadHolidayPreset(year + 1)
-            ]);
-
-            const grid = document.getElementById('calendarGrid');
-            grid.innerHTML = ''; 
-
-            const weekdays = ['일', '월', '화', '수', '목', '금', '토'];
-            const weekdayClasses = ['sun', '', '', '', '', '', 'sat'];
-            
-            weekdays.forEach((day, index) => {
-                const div = document.createElement('div');
-                div.className = `weekday ${weekdayClasses[index]}`;
-                div.textContent = day;
-                grid.appendChild(div);
-            });
-
-            const firstDay = new Date(year, month, 1);
-            const lastDay = new Date(year, month + 1, 0);
-            const startOffset = firstDay.getDay(); 
-            const totalCells = Math.ceil((startOffset + lastDay.getDate()) / 7) * 7;
-            
-            const realToday = new Date();
-
-            for (let i = 0; i < totalCells; i++) {
-                const cellDate = new Date(year, month, i - startOffset + 1);
-                const cellDiv = document.createElement('div');
-                cellDiv.className = 'cell';
-                
-                if (cellDate.getMonth() !== month) {
-                    cellDiv.classList.add('other-month');
-                }
-
-                if (cellDate.getFullYear() === realToday.getFullYear() && 
-                    cellDate.getMonth() === realToday.getMonth() && 
-                    cellDate.getDate() === realToday.getDate()) {
-                    cellDiv.classList.add('today');
-                }
-
-                const dateWrapper = document.createElement('div');
-                dateWrapper.className = 'date-wrapper';
-
-                const dateNum = document.createElement('div');
-                dateNum.className = 'date-num';
-                dateNum.textContent = cellDate.getDate();
-                dateWrapper.appendChild(dateNum);
-
-                const holidayName = getHolidayName(cellDate);
-                if (holidayName) {
-                    cellDiv.classList.add('is-holiday');
-                    const holiSpan = document.createElement('span');
-                    holiSpan.className = 'holiday-name';
-                    holiSpan.textContent = holidayName;
-                    dateWrapper.appendChild(holiSpan);
-                }
-
-                cellDiv.appendChild(dateWrapper);
-
-                if (baseDate && workers.length > 0) {
-                    const dutyName = getDutyName(cellDate);
-                    const tomorrowDate = new Date(cellDate);
-                    tomorrowDate.setDate(tomorrowDate.getDate() + 1);
-                    const dayShiftName = getDutyName(tomorrowDate);
-
-                    const dutyDiv = document.createElement('div');
-                    dutyDiv.className = 'schedule-item';
-                    dutyDiv.textContent = `당직: ${dutyName}`;
-                    dutyDiv.style.backgroundColor = getPastelColor(dutyName); 
-                    cellDiv.appendChild(dutyDiv);
-
-                    const isWeekend = (cellDate.getDay() === 0 || cellDate.getDay() === 6);
-                    if (!isWeekend && !holidayName) {
-                        const dayShiftDiv = document.createElement('div');
-                        dayShiftDiv.className = 'schedule-item';
-                        dayShiftDiv.textContent = `주간: ${dayShiftName}`;
-                        dayShiftDiv.style.backgroundColor = getPastelColor(dayShiftName); 
-                        cellDiv.appendChild(dayShiftDiv);
-                    }
-                }
-                grid.appendChild(cellDiv);
-            }
-        }
-
-        let datesForEdit = []; 
-
-        window.openModal = function() {
-            const today = new Date();
-            const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
-            const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
-            
-            datesForEdit = [yesterday, today, tomorrow];
-
-            document.getElementById('lblYest').textContent = `어제 (${yesterday.getMonth()+1}/${yesterday.getDate()})`;
-            document.getElementById('lblToda').textContent = `오늘 (${today.getMonth()+1}/${today.getDate()})`;
-            document.getElementById('lblTomo').textContent = `내일 (${tomorrow.getMonth()+1}/${tomorrow.getDate()})`;
-
-            document.getElementById('inpYest').value = getDutyName(yesterday);
-            document.getElementById('inpToda').value = getDutyName(today);
-            document.getElementById('inpTomo').value = getDutyName(tomorrow);
-
-            document.getElementById('editModal').style.display = 'flex';
-        }
-
-        window.closeModal = function() {
-            document.getElementById('editModal').style.display = 'none';
-        }
-
-        window.saveChanges = async function() {
-            if (WEB_APP_URL.includes("여기에_웹앱_URL을_붙여넣으세요")) {
-                alert("구글 앱스 스크립트(Web App) URL이 설정되지 않았습니다.");
-                return;
-            }
-
-            const newWorkers = [
-                { date: `${datesForEdit[0].getFullYear()}. ${datesForEdit[0].getMonth()+1}. ${datesForEdit[0].getDate()}`, name: document.getElementById('inpYest').value },
-                { date: `${datesForEdit[1].getFullYear()}. ${datesForEdit[1].getMonth()+1}. ${datesForEdit[1].getDate()}`, name: document.getElementById('inpToda').value },
-                { date: `${datesForEdit[2].getFullYear()}. ${datesForEdit[2].getMonth()+1}. ${datesForEdit[2].getDate()}`, name: document.getElementById('inpTomo').value }
-            ];
-
-            baseDate = datesForEdit[0];
-            workers = newWorkers.map(w => w.name);
-            await renderCalendar();
-            closeModal();
-
-            try {
-                const response = await fetch(WEB_APP_URL, {
-                    method: 'POST',
-                    body: JSON.stringify(newWorkers)
-                });
-                const result = await response.json();
-                if (result.result !== 'success') {
-                    alert('저장에 실패했습니다.');
-                }
-            } catch (e) {
-                console.error(e);
-                alert('시트 갱신 중 오류가 발생했습니다.');
-            }
-        }
-
-        fetchSheetData();
-    </script>
-</body>
-</html>
