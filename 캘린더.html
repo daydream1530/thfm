@@ -12,7 +12,7 @@
             --border-color: #E2E8F0;
             --sunday-color: #FF8080;
             --saturday-color: #80A0FF;
-            --today-bg: #FFFDE7; /* 아주 연한 파스텔톤 노란색 */
+            --today-bg: #FFFDE7;
         }
 
         body {
@@ -84,7 +84,6 @@
             background: var(--cell-bg);
             border-radius: 12px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-            /* 모바일이 아닐 때는 hidden 유지 */
             overflow: hidden; 
         }
 
@@ -119,7 +118,6 @@
             gap: 6px;
         }
 
-        /* 오늘 날짜 하이라이트 */
         .cell.today {
             background-color: var(--today-bg);
         }
@@ -190,65 +188,66 @@
         .btn-confirm { background: var(--primary-color); color: white; }
         .btn-cancel { background: #E2E8F0; color: #475569; }
 
-        /* --- 모바일 화면 대응 (화면 너비 600px 이하일 때 적용) --- */
+        /* --- 모바일 화면 대응 (화면 너비 600px 이하일 때 무조건 비례 축소) --- */
         @media (max-width: 600px) {
             body {
-                /* 모바일에서는 버려지는 공간이 없도록 좌우 여백을 최소화 */
-                padding: 10px 5px; 
+                padding: 2vw; /* 외부 여백도 화면 비율로 */
             }
 
             .header {
-                padding: 10px;
-                gap: 5px;
+                padding: 2vw;
+                gap: 1vw;
             }
             .header button {
-                padding: 8px 10px;
-                font-size: 13px;
+                padding: 1.5vw 2vw;
+                font-size: 3.2vw; /* 버튼 글자 크기 축소 */
                 white-space: nowrap; 
-                flex-shrink: 0;      
             }
             .month-controls {
-                gap: 10px;
+                gap: 2vw;
             }
             .month-controls h2 {
-                font-size: 18px;     
-                min-width: 100px;    
+                font-size: 4.5vw; /* 연/월 텍스트 축소 */
+                min-width: auto;    
+            }
+            .month-controls button {
+                font-size: 5vw;
+                padding: 1vw;
             }
 
-            /* 🌟 핵심 변경: 캘린더 가로 스크롤 및 최소 너비 보장 🌟 */
             .calendar-wrapper {
-                overflow-x: auto; /* 화면보다 표가 커지면 가로 스크롤 생성 */
-                -webkit-overflow-scrolling: touch; /* 모바일에서 부드러운 스크롤 */
+                width: 100%;
+                overflow: hidden; /* 가로 스크롤 절대 방지 */
             }
             .calendar {
-                min-width: 420px; /* 이 너비보다 좁아지면 잘리지 않고 스크롤됨 */
+                width: 100%;
             }
 
             .weekday {
-                padding: 8px 0;
-                font-size: 13px;
+                padding: 2vw 0;
+                font-size: 3.2vw; /* 요일 글자 크기 축소 */
             }
             .cell {
-                min-height: 80px;    
-                padding: 4px;        
-                gap: 4px;
+                min-height: 15vw; /* 셀 높이도 비율로 */
+                padding: 1vw;        
+                gap: 1vw;
             }
             .date-num {
-                font-size: 14px;
+                font-size: 3.5vw;
             }
 
             .schedule-item {
-                font-size: 10px;         
-                padding: 3px 2px;        
-                letter-spacing: -0.5px;  
+                font-size: 2.4vw; /* 근무자 이름 크기 (화면 폭의 2.4%) */
+                padding: 0.8vw 0.5vw;        
+                letter-spacing: -1px;  /* 글자 사이 간격을 좁힘 */
                 text-align: center;
                 white-space: nowrap;     
                 overflow: hidden;        
                 text-overflow: ellipsis; 
             }
             .holiday-name {
-                font-size: 10px;
-                letter-spacing: -0.5px;
+                font-size: 2.2vw;
+                letter-spacing: -1px;
             }
         }
     </style>
