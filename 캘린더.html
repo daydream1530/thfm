@@ -187,6 +187,57 @@
         .modal-buttons button { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
         .btn-confirm { background: var(--primary-color); color: white; }
         .btn-cancel { background: #E2E8F0; color: #475569; }
+
+        /* --- 모바일 화면 대응 (화면 너비 600px 이하일 때 적용) --- */
+        @media (max-width: 600px) {
+            /* 1. 상단 네비게이션 바 조정 */
+            .header {
+                padding: 10px;
+                gap: 5px;
+            }
+            .header button {
+                padding: 8px 10px;
+                font-size: 13px;
+                white-space: nowrap; /* 버튼 텍스트가 세로로 떨어지는 현상 방지 */
+                flex-shrink: 0;      /* 버튼 크기가 찌그러지지 않도록 고정 */
+            }
+            .month-controls {
+                gap: 10px;
+            }
+            .month-controls h2 {
+                font-size: 18px;     /* 연월 글꼴 크기 축소 */
+                min-width: 100px;    /* 최소 너비 축소 */
+            }
+
+            /* 2. 캘린더 요일 및 셀 여백 조정 */
+            .weekday {
+                padding: 8px 0;
+                font-size: 13px;
+            }
+            .cell {
+                min-height: 80px;    /* 셀 최소 높이 축소 */
+                padding: 4px;        /* 셀 내부 여백 축소 */
+                gap: 4px;
+            }
+            .date-num {
+                font-size: 14px;
+            }
+
+            /* 3. 근무자 스케줄 블록 조정 */
+            .schedule-item {
+                font-size: 10px;         /* 글꼴 크기를 대폭 줄임 */
+                padding: 3px 2px;        /* 블록 내부 여백 최소화 */
+                letter-spacing: -0.5px;  /* 자간을 좁혀 한 줄에 더 많이 들어가게 함 */
+                text-align: center;
+                white-space: nowrap;     /* 강제 줄바꿈 방지 */
+                overflow: hidden;        /* 영역을 넘어가면 숨김 처리 */
+                text-overflow: ellipsis; /* 이름이 너무 길면 '...'으로 표시 */
+            }
+            .holiday-name {
+                font-size: 10px;
+                letter-spacing: -0.5px;
+            }
+        }
     </style>
 </head>
 <body>
