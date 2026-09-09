@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>근무표 달력</title>
     <style>
-  :root {
+        :root {
             --primary-color: #7A86B6;
             --bg-color: #F8F9FA;
             --cell-bg: #FFFFFF;
@@ -50,7 +50,7 @@
             font-weight: bold;
             cursor: pointer;
             transition: background 0.2s;
-            white-space: nowrap; /* 버튼 텍스트 줄바꿈 방지 */
+            white-space: nowrap;
             flex-shrink: 0;
         }
 
@@ -121,20 +121,24 @@
             display: flex;
             flex-direction: column;
             gap: 6px;
-            min-width: 0; /* 🌟 핵심: 텍스트가 길어도 셀 너비가 강제로 늘어나지 않도록 방어 */
+            min-width: 0;
             overflow: hidden;
+            cursor: pointer; /* 🌟 클릭 가능하도록 커서 변경 */
+            transition: background-color 0.2s;
         }
 
-        .cell.today {
-            background-color: var(--today-bg);
+        .cell:hover {
+            background-color: #F8FAFC; /* 🌟 호버 효과 */
         }
+
+        .cell.today { background-color: var(--today-bg); }
 
         .date-wrapper {
             display: flex;
             align-items: baseline;
             gap: 6px;
             margin-bottom: 4px;
-            flex-wrap: wrap; /* 휴일 이름이 길면 밑으로 내려가도록 처리 */
+            flex-wrap: wrap;
         }
 
         .date-num {
@@ -159,25 +163,38 @@
 
         .cell.other-month { background-color: #F8FAFC; }
         .cell.other-month .date-num, .cell.other-month .holiday-name { color: #E2E8F0 !important; }
-        .cell.other-month .schedule-item {
-            background-color: #F1F5F9 !important;
-            color: #CBD5E1 !important;
-            box-shadow: none;
+        .cell.other-month .schedule-item, .cell.other-month .memo-item {
+            opacity: 0.5;
         }
 
-        /* 🌟 스케줄 블록 말줄임표 처리 (모든 해상도 공통 적용) */
         .schedule-item {
             font-size: 13px;
             padding: 4px 6px;
             border-radius: 4px;
             color: #333;
             font-weight: bold;
-            white-space: nowrap;     /* 한 줄로 표시 */
-            overflow: hidden;        /* 넘치는 텍스트 숨김 */
-            text-overflow: ellipsis; /* 숨겨진 텍스트를 '...'으로 표시 */
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
-        /* 모달 팝업 스타일 */
+        /* 🌟 추가된 메모 블록 스타일 */
+        .memo-item {
+            font-size: 12px;
+            padding: 6px;
+            background-color: #FEF3C7;
+            border-left: 3px solid #F59E0B;
+            border-radius: 4px;
+            color: #453411;
+            white-space: pre-wrap; /* 줄바꿈 반영 🌟 */
+            word-break: break-all;
+            margin-top: auto; /* 아래쪽에 붙도록 설정 */
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            max-height: 80px;
+            overflow-y: auto;
+        }
+
+        /* 모달 공통 스타일 */
         .modal-overlay {
             display: none;
             position: fixed;
@@ -196,49 +213,49 @@
             box-shadow: 0 5px 20px rgba(0,0,0,0.1);
         }
         .modal-content h3 { margin-top: 0; text-align: center; color: #333; }
+        
+        /* 당직 수정 팝업 스타일 */
         .edit-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
         .edit-row label { font-weight: bold; width: 120px; }
         .edit-row input { width: 150px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
-        .modal-buttons { display: flex; justify-content: center; gap: 10px; margin-top: 25px; }
+        
+        /* 🌟 메모 팝업 스타일 */
+        #memoInput {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            resize: none;
+            font-family: inherit;
+            font-size: 14px;
+        }
+
+        .modal-buttons { display: flex; justify-content: center; gap: 10px; margin-top: 20px; }
         .modal-buttons button { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
         .btn-confirm { background: var(--primary-color); color: white; }
         .btn-cancel { background: #E2E8F0; color: #475569; }
 
-        /* --- 768px 이하 (태블릿 및 모바일) 반응형 --- */
+        /* 반응형 */
         @media (max-width: 768px) {
             body { padding: 10px; }
             .header { padding: 10px; }
             .month-controls h2 { font-size: 20px; min-width: 100px; }
-            
-            .cell {
-                min-height: 80px;
-                padding: 6px 4px;
-            }
-            .weekday {
-                padding: 10px 0;
-                font-size: 14px;
-            }
-            .schedule-item {
-                font-size: 11px;
-                padding: 3px 4px;
-                letter-spacing: -0.5px;
-            }
+            .cell { min-height: 80px; padding: 6px 4px; }
+            .weekday { padding: 10px 0; font-size: 14px; }
+            .schedule-item { font-size: 11px; padding: 3px 4px; letter-spacing: -0.5px; }
+            .memo-item { font-size: 10px; padding: 4px; max-height: 50px; }
             .date-num { font-size: 14px; }
         }
 
-        /* --- 480px 이하 (작은 모바일) 추가 축소 --- */
         @media (max-width: 480px) {
             body { padding: 5px; }
             .header button { padding: 8px 10px; font-size: 13px; }
             .month-controls h2 { font-size: 18px; }
-            
             .cell { min-height: 65px; gap: 4px; }
             .weekday { padding: 8px 0; font-size: 12px; }
-            .schedule-item {
-                font-size: 9px;
-                padding: 2px;
-                letter-spacing: -1px;
-            }
+            .schedule-item { font-size: 9px; padding: 2px; letter-spacing: -1px; }
+            .memo-item { font-size: 9px; padding: 3px; max-height: 40px; }
         }
     </style>
 </head>
@@ -260,7 +277,7 @@
         </div>
     </div>
 
-    <!-- 수정 모달 팝업 -->
+    <!-- 기존 당직 수정 모달 -->
     <div class="modal-overlay" id="editModal">
         <div class="modal-content">
             <h3>당직 근무자 수정</h3>
@@ -283,6 +300,18 @@
         </div>
     </div>
 
+    <!-- 🌟 추가된 메모 작성 모달 -->
+    <div class="modal-overlay" id="memoModal">
+        <div class="modal-content">
+            <h3 id="memoModalTitle">메모 작성</h3>
+            <textarea id="memoInput" rows="5" placeholder="메모를 입력하세요 (줄바꿈 가능)"></textarea>
+            <div class="modal-buttons">
+                <button class="btn-confirm" onclick="saveMemo()">저장</button>
+                <button class="btn-cancel" onclick="closeMemoModal()">취소</button>
+            </div>
+        </div>
+    </div>
+
     <script type="module">
         import { getHolidayPreset } from 'https://cdn.jsdelivr.net/npm/@hyunbinseo/holidays-kr/+esm';
 
@@ -298,6 +327,9 @@
         let currentDate = new Date(); 
         
         const holidayCache = {};
+        
+        // 🌟 메모 데이터를 담을 객체 추가 ({ '2024-05-01': '메모내용' })
+        let memos = {}; 
 
         window.goBack = function() {
             window.location.href = "https://daydream1530.github.io/thfm/";
@@ -318,7 +350,7 @@
                 try {
                     holidayCache[year] = await getHolidayPreset(String(year));
                 } catch (e) {
-                    console.warn(`[${year}년] 휴일 데이터를 찾을 수 없습니다. (RangeError 방어)`);
+                    console.warn(`[${year}년] 휴일 데이터를 찾을 수 없습니다.`);
                     holidayCache[year] = {}; 
                 }
             }
@@ -336,7 +368,20 @@
             return null;
         }
 
-        async function fetchSheetData() {
+        // 🌟 날짜 문자열 통일 함수 (YYYY-MM-DD 형식 반환)
+        function parseDateToKey(rawStr) {
+            if (typeof rawStr === 'string' && rawStr.includes('Date')) {
+                const match = rawStr.match(/Date\((\d+),\s*(\d+),\s*(\d+)/);
+                if (match) return `${match[1]}-${String(Number(match[2])+1).padStart(2,'0')}-${String(match[3]).padStart(2,'0')}`;
+            } else if (typeof rawStr === 'string') {
+                const match = rawStr.match(/(\d{4})\D+(\d{1,2})\D+(\d{1,2})/);
+                if (match) return `${match[1]}-${String(match[2]).padStart(2,'0')}-${String(match[3]).padStart(2,'0')}`;
+            }
+            return null;
+        }
+
+        // 시트1 데이터(당직) 가져오기
+        async function fetchDutyData() {
             const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json`;
             try {
                 const response = await fetch(url);
@@ -366,10 +411,43 @@
                     workers = entries.map(e => e.name); 
                 }
             } catch (error) {
-                console.error("스프레드시트 데이터 로드 실패:", error);
-            } finally {
-                await renderCalendar();
+                console.error("당직 데이터 로드 실패:", error);
             }
+        }
+
+        // 🌟 시트2 데이터(메모) 가져오기
+        async function fetchMemoData() {
+            // "시트2" 또는 "Sheet2" (본인의 두 번째 시트 이름에 맞게 작동하도록 '시트2'로 쿼리합니다)
+            const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=시트2`;
+            try {
+                const response = await fetch(url);
+                const text = await response.text();
+                // 시트가 없거나 비어있으면 오류가 날 수 있으므로 예외처리
+                const match = text.match(/google\.visualization\.Query\.setResponse\(([\s\S\w]+)\);/);
+                if(!match) return;
+                
+                const data = JSON.parse(match[1]);
+                memos = {};
+                
+                if (data.table && data.table.rows) {
+                    data.table.rows.forEach(row => {
+                        if (row.c[0] && row.c[1]) {
+                            let rawStr = row.c[0].f || row.c[0].v;
+                            let content = row.c[1].v || "";
+                            let dateKey = parseDateToKey(rawStr);
+                            if (dateKey) memos[dateKey] = content;
+                        }
+                    });
+                }
+            } catch (error) {
+                console.warn("메모 데이터 로드 실패 (시트2가 없거나 비어있을 수 있습니다):", error);
+            }
+        }
+
+        // 전체 데이터 로드 및 렌더링
+        async function loadAllData() {
+            await Promise.all([fetchDutyData(), fetchMemoData()]);
+            await renderCalendar();
         }
 
         function getDaysDiff(targetDate) {
@@ -420,8 +498,17 @@
 
             for (let i = 0; i < totalCells; i++) {
                 const cellDate = new Date(year, month, i - startOffset + 1);
+                const dateKey = `${cellDate.getFullYear()}-${String(cellDate.getMonth()+1).padStart(2,'0')}-${String(cellDate.getDate()).padStart(2,'0')}`;
+
                 const cellDiv = document.createElement('div');
                 cellDiv.className = 'cell';
+                
+                // 🌟 셀 클릭 시 메모 모달 띄우기 이벤트 등록
+                cellDiv.onclick = (e) => {
+                    // 당직 수정 버튼 클릭 등 버블링 방지를 위한 간단한 처리
+                    if(e.target.tagName === 'BUTTON') return;
+                    openMemoModal(dateKey);
+                };
                 
                 if (cellDate.getMonth() !== month) {
                     cellDiv.classList.add('other-month');
@@ -473,10 +560,22 @@
                         cellDiv.appendChild(dayShiftDiv);
                     }
                 }
+
+                // 🌟 등록된 메모가 있으면 출력
+                if (memos[dateKey] && memos[dateKey].trim() !== '') {
+                    const memoDiv = document.createElement('div');
+                    memoDiv.className = 'memo-item';
+                    memoDiv.textContent = memos[dateKey]; // XSS 방어(textContent) 및 줄바꿈 적용
+                    cellDiv.appendChild(memoDiv);
+                }
+
                 grid.appendChild(cellDiv);
             }
         }
 
+        // ============================
+        // 당직 수정 관련 코드
+        // ============================
         let datesForEdit = []; 
 
         window.openModal = function() {
@@ -497,16 +596,9 @@
             document.getElementById('editModal').style.display = 'flex';
         }
 
-        window.closeModal = function() {
-            document.getElementById('editModal').style.display = 'none';
-        }
+        window.closeModal = function() { document.getElementById('editModal').style.display = 'none'; }
 
         window.saveChanges = async function() {
-            if (WEB_APP_URL.includes("여기에_웹앱_URL을_붙여넣으세요")) {
-                alert("구글 앱스 스크립트(Web App) URL이 설정되지 않았습니다.");
-                return;
-            }
-
             const newWorkers = [
                 { date: `${datesForEdit[0].getFullYear()}. ${datesForEdit[0].getMonth()+1}. ${datesForEdit[0].getDate()}`, name: document.getElementById('inpYest').value },
                 { date: `${datesForEdit[1].getFullYear()}. ${datesForEdit[1].getMonth()+1}. ${datesForEdit[1].getDate()}`, name: document.getElementById('inpToda').value },
@@ -519,21 +611,55 @@
             closeModal();
 
             try {
-                const response = await fetch(WEB_APP_URL, {
-                    method: 'POST',
-                    body: JSON.stringify(newWorkers)
-                });
-                const result = await response.json();
-                if (result.result !== 'success') {
-                    alert('저장에 실패했습니다.');
-                }
+                await fetch(WEB_APP_URL, { method: 'POST', body: JSON.stringify(newWorkers) });
             } catch (e) {
-                console.error(e);
                 alert('시트 갱신 중 오류가 발생했습니다.');
             }
         }
 
-        fetchSheetData();
+        // ============================
+        // 🌟 새로 추가된 메모 작성 코드
+        // ============================
+        let currentMemoDate = null;
+
+        window.openMemoModal = function(dateKey) {
+            currentMemoDate = dateKey;
+            document.getElementById('memoModalTitle').textContent = `${dateKey} 메모`;
+            document.getElementById('memoInput').value = memos[dateKey] || '';
+            document.getElementById('memoModal').style.display = 'flex';
+            setTimeout(() => document.getElementById('memoInput').focus(), 100);
+        }
+
+        window.closeMemoModal = function() {
+            document.getElementById('memoModal').style.display = 'none';
+        }
+
+        window.saveMemo = async function() {
+            const content = document.getElementById('memoInput').value;
+            
+            // 화면에 먼저 반영 (로딩 없이 즉시 렌더링)
+            memos[currentMemoDate] = content;
+            await renderCalendar();
+            closeMemoModal();
+
+            // 백엔드로 전송 (action 속성으로 구분)
+            try {
+                const payload = {
+                    action: 'saveMemo',
+                    date: currentMemoDate,
+                    content: content
+                };
+                await fetch(WEB_APP_URL, {
+                    method: 'POST',
+                    body: JSON.stringify(payload)
+                });
+            } catch (e) {
+                alert('메모 저장에 실패했습니다. (인터넷 연결 상태 확인)');
+            }
+        }
+
+        // 실행
+        loadAllData();
     </script>
 </body>
 </html>
