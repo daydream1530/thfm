@@ -362,33 +362,38 @@ plus.onclick = () => {
   countEl.textContent = participantCount;
 };
 
-function loadSheet() {
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzTRkSxMDsZUuYMlobD6eR3BWl9k-X63Qob9NMeJImbfh3N2CswYQ9oTvlMS2z07n4c/exec";
+
+async function loadSheet() {
   sheetStatus.textContent = "Google Sheets 연결 중...";
   sheetStatus.className = "sheet-status";
 
-  return new Promise((resolve) => {
-    if (typeof google === "undefined" || !google.script || !google.script.run) {
-      sheetStatus.textContent = "⚠ Google Apps Script 환경에서 실행해주세요.";
-      sheetStatus.className = "sheet-status error";
-      resolve(false);
-      return;
+  try {
+    // URL 뒤에 타임스탬프를 붙여서 캐싱(이전 데이터 불러오는 현상) 방지
+    const response = await fetch(APPS_SCRIPT_URL + "?t=" + Date.now());
+    
+    if (!response.ok) {
+      throw new Error(`HTTP 에러: ${response.status}`);
     }
 
-    google.script.run
-      .withSuccessHandler((data) => {
-        sheetData = data;
-        sheetStatus.textContent = `✓ Google Sheets 연결 완료 (${sheetData.length}명)`;
-        sheetStatus.className = "sheet-status ok";
-        resolve(true);
-      })
-      .withFailureHandler((err) => {
-        sheetData = [];
-        sheetStatus.textContent = "⚠ 연결 실패: " + err.message;
-        sheetStatus.className = "sheet-status error";
-        resolve(false);
-      })
-      .getHorseData();
-  });
+    const resData = await response.json();
+
+    if (!resData.success) {
+      throw new Error(resData.error);
+    }
+
+    sheetData = resData.data;
+    sheetStatus.textContent = `✓ Google Sheets 연결 완료 (${sheetData.length}명)`;
+    sheetStatus.className = "sheet-status ok";
+    return true;
+
+  } catch (err) {
+    console.error("데이터 로딩 에러:", err);
+    sheetData = [];
+    sheetStatus.textContent = "⚠ 연결 실패: " + err.message;
+    sheetStatus.className = "sheet-status error";
+    return false;
+  }
 }
 loadSheet();
 
