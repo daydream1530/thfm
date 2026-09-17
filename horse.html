@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>HORSE RACE</title>
+
+<style>
+:root{
+  --gold:#ffd447;
+  --panel:#141a24;
+  --text:#fff;
+  --muted:#94a0b4;
+  --track:#cba96c;
+}
+
+*{box-sizing:border-box}
+
+html,body{
+  margin:0;
+  width:100%;
+  height:100%;
+  background:#080b10;
+  color:var(--text);
+  font-family: Pretendard, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  overflow:hidden;
+}
+
+button{border:0;font:inherit;cursor:pointer}
+.hidden{display:none!important}
+
+/* ================= SETUP ================= */
+#setup{
+  min-height:100vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:24px;
+  background:radial-gradient(circle at 50% 20%,#26344e 0,#101722 42%,#07090d 100%);
+}
+
+.setup-card{
+  width:min(500px,100%);
+  padding:40px;
+  border-radius:24px;
+  background:rgba(18,24,34,.96);
+  border:1px solid rgba(255,255,255,.1);
+  box-shadow:0 30px 80px rgba(0,0,0,.6);
+  text-align:center;
+}
+
+.setup-card h1{margin:10px 0;font-size:36px}
+.setup-card .desc{color:var(--muted);font-size:14px}
+.count-control{display:flex;align-items:center;justify-content:center;gap:20px;margin:25px 0}
+.count-control button{width:50px;height:50px;border-radius:50%;background:#2b3547;color:#fff;font-size:24px;transition:.15s}
+.count-control button:hover{background:#3c4a61}
+#count{min-width:80px;color:var(--gold);font-size:54px;font-weight:900}
+
+.main-button{
+  width:100%;
+  padding:16px;
+  border-radius:14px;
+  color:#17120a;
+  font-size:18px;
+  font-weight:900;
+  background:linear-gradient(135deg,#ffe16c,#ffae24);
+}
+.sheet-status{margin-top:14px;min-height:20px;color:#7f8ca2;font-size:13px}
+.sheet-status.ok{color:#69df91}
+.sheet-status.error{color:#ff7070}
+
+/* ================= RACE ================= */
+#race{
+  display:none;
+  width:100%;
+  height:100vh;
+  flex-direction:column;
+  background:#0d1118;
+}
+#race.active{display:flex}
+
+.topbar{
+  height:60px;
+  flex:none;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:0 20px;
+  background:#121823;
+  border-bottom:1px solid rgba(255,255,255,.08);
+  z-index:50;
+}
+.brand{font-size:18px;font-weight:900}
+#raceTimer{font-family:monospace;font-size:18px;color:var(--gold);font-weight:700}
+
+.rank-strip{
+  height:42px;
+  flex:none;
+  background:#161d2a;
+  border-bottom:1px solid rgba(255,255,255,.05);
+  display:flex;
+  align-items:center;
+  padding:0 15px;
+  gap:10px;
+  overflow-x:auto;
+  white-space:nowrap;
+}
+.rank-strip-title{
+  font-size:11px;
+  font-weight:900;
+  color:#ffd447;
+  padding-right:8px;
+  border-right:1px solid rgba(255,255,255,.1);
+}
+.rank-badges{display:flex;gap:8px}
+.rank-tag{
+  padding:3px 8px;
+  background:#202838;
+  border-radius:6px;
+  font-size:11px;
+  font-weight:700;
+  display:flex;
+  align-items:center;
+  gap:4px;
+}
+.rank-tag span{color:var(--gold);font-weight:900}
+
+/* ================= STADIUM ================= */
+#stadium{
+  position:relative;
+  flex:1;
+  overflow:hidden;
+  background:#2d4427;
+}
+.track{
+  position:absolute;
+  inset:0;
+  background:
+    repeating-linear-gradient(90deg, rgba(255,255,255,.03) 0 25px, rgba(0,0,0,.02) 25px 50px),
+    var(--track);
+}
+.start-line{
+  position:absolute;left:4%;top:0;bottom:0;width:8px;
+  background:repeating-linear-gradient(to bottom, #fff 0 16px, #111 16px 32px);
+  z-index:5;
+}
+.finish-line{
+  position:absolute;right:14%;top:0;bottom:0;width:12px;
+  background:repeating-linear-gradient(to bottom, #fff 0 16px, #111 16px 32px);
+  box-shadow:0 0 15px rgba(255,255,255,.4);
+  z-index:5;
+}
+
+#lanes{position:absolute;inset:0}
+.lane-line{
+  position:absolute;left:0;right:0;height:1px;
+  background:rgba(0,0,0,.15);
+}
+
+#horseLayer{position:absolute;inset:0;pointer-events:none;z-index:10;overflow:hidden}
+.horse-row{position:absolute;left:4%;right:14%;transform:translateY(-50%)}
+.horse-wrap{
+  position:absolute;
+  left:0;
+  top:50%;
+  transform:translateY(-50%);
+  width:85px;
+  height:55px;
+}
+.horse-img{
+  position:absolute;left:0;bottom:4px;
+  width:75px;height:48px;
+  object-fit:contain;
+  filter:drop-shadow(2px 4px 2px rgba(0,0,0,.35));
+}
+.number-badge{
+  position:absolute;left:-4px;top:-4px;
+  width:22px;height:22px;border-radius:50%;
+  background:#1a2130;border:2px solid #fff;
+  color:#fff;font-size:10px;font-weight:900;
+  display:flex;align-items:center;justify-content:center;
+  z-index:5;
+}
+
+.finish-stand-badge{
+  position:absolute;
+  right:7%;
+  transform:translateY(-50%);
+  width:26px;
+  height:26px;
+  border-radius:50%;
+  background:linear-gradient(135deg, #ffd447, #ff9f1c);
+  border:2px solid #fff;
+  color:#111;
+  font-size:11px;
+  font-weight:900;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  box-shadow:0 0 10px rgba(255,212,71,.5);
+  animation:pop .4s ease;
+  z-index:6;
+}
+
+/* ================= CONTROLS ================= */
+.bottom{
+  height:75px;
+  flex:none;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:#121823;
+  border-top:1px solid rgba(255,255,255,.08);
+}
+#confirm{
+  width:min(380px,90%);
+  padding:15px;
+  border-radius:12px;
+  background:linear-gradient(135deg,#ffe066,#ffab21);
+  color:#17130b;
+  font-size:16px;
+  font-weight:900;
+}
+#confirm:disabled{opacity:.5;cursor:not-allowed}
+
+/* ================= RESULT ================= */
+#result{
+  position:fixed;inset:0;z-index:200;display:none;
+  align-items:center;justify-content:center;padding:20px;
+  background:rgba(2,5,9,.8);backdrop-filter:blur(8px);
+}
+#result.show{display:flex}
+.result-card{
+  width:min(550px,100%);max-height:85vh;overflow:auto;
+  padding:28px;border-radius:20px;background:#171f2c;
+  border:1px solid rgba(255,255,255,.1);text-align:center;
+}
+.result-item{
+  display:flex;align-items:center;gap:15px;
+  margin:6px 0;padding:10px 16px;background:#212b3a;border-radius:10px;
+}
+.result-rank{width:30px;font-size:18px;font-weight:900;color:var(--muted)}
+.result-rank.r1{color:#ffd447}
+.result-rank.r2{color:#dbe2e9}
+.result-rank.r3{color:#dc9862}
+.result-number{flex:1;text-align:left;font-weight:900}
+.result-time{color:var(--gold);font-family:monospace;font-weight:700}
+.result-actions{display:flex;gap:10px;margin-top:20px}
+.result-actions button{flex:1;padding:12px;border-radius:10px;font-weight:900}
+#again{background:#ffd447}
+#backSetup{background:#303b4d;color:#fff}
+
+/* ================= COUNTDOWN ================= */
+#countdown{
+  position:absolute;inset:0;z-index:100;display:none;
+  align-items:center;justify-content:center;pointer-events:none;
+}
+#countdown.show{display:flex}
+#countdownText{
+  font-size:90px;font-weight:900;color:#fff;
+  text-shadow:0 0 25px rgba(255,211,70,.4);
+  animation:pop .7s ease;
+}
+@keyframes pop{0%{transform:scale(1.5);opacity:0} 40%{opacity:1} 100%{transform:scale(1);opacity:1}}
+</style>
+</head>
+
+<body>
+
+<section id="setup">
+  <div class="setup-card">
+    <div style="font-size:50px">🏇</div>
+    <h1>HORSE RACE</h1>
+    <div class="desc">사전 시뮬레이션 매핑 스왑 (1/N 스킬 역전)</div>
+    <div class="count-control">
+      <button id="minus">−</button>
+      <div id="count">10</div>
+      <button id="plus">＋</button>
+    </div>
+    <button id="start" class="main-button">경주장 입장</button>
+    <div id="sheetStatus" class="sheet-status">데이터를 불러오는 중...</div>
+  </div>
+</section>
+
+<section id="race">
+  <header class="topbar">
+    <div class="brand">🏇 HORSE RACE</div>
+    <div id="raceTimer">00:00.00</div>
+  </header>
+
+  <div class="rank-strip">
+    <div class="rank-strip-title">LIVE RANK</div>
+    <div id="rankBadges" class="rank-badges"></div>
+  </div>
+
+  <main id="stadium">
+    <div class="track">
+      <div id="lanes"></div>
+      <div class="start-line"></div>
+      <div class="finish-line"></div>
+      <div id="horseLayer"></div>
+    </div>
+
+    <div id="countdown">
+      <div id="countdownText">3</div>
+    </div>
+  </main>
+
+  <footer class="bottom">
+    <button id="confirm">🔔 경주 시작</button>
+  </footer>
+</section>
+
+<div id="result">
+  <div class="result-card">
+    <div style="font-size:40px">🏆</div>
+    <h2>최종 경기 결과</h2>
+    <div id="resultList"></div>
+    <div class="result-actions">
+      <button id="again">다시 경주</button>
+      <button id="backSetup">인원 재설정</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const HORSE_IMAGE = "https://png.pngtree.com/png-clipart/20250207/original/pngtree-a-majestic-red-horse-png-image_20372883.png";
+
+const setup = document.getElementById("setup");
+const race = document.getElementById("race");
+const countEl = document.getElementById("count");
+const minus = document.getElementById("minus");
+const plus = document.getElementById("plus");
+const start = document.getElementById("start");
+const sheetStatus = document.getElementById("sheetStatus");
+const confirmBtn = document.getElementById("confirm");
+const stadium = document.getElementById("stadium");
+const lanes = document.getElementById("lanes");
+const horseLayer = document.getElementById("horseLayer");
+const rankBadges = document.getElementById("rankBadges");
+const raceTimer = document.getElementById("raceTimer");
+const result = document.getElementById("result");
+const resultList = document.getElementById("resultList");
+const again = document.getElementById("again");
+const backSetup = document.getElementById("backSetup");
+const countdown = document.getElementById("countdown");
+const countdownText = document.getElementById("countdownText");
+
+let participantCount = 10;
+let sheetData = [];
+let racers = [];
+let raceRunning = false;
+let raceStartTime = 0;
+let animationFrame = null;
+
+minus.onclick = () => {
+  participantCount = Math.max(2, participantCount - 1);
+  countEl.textContent = participantCount;
+};
+plus.onclick = () => {
+  participantCount = Math.min(20, participantCount + 1);
+  countEl.textContent = participantCount;
+};
+
+function loadSheet() {
+  sheetStatus.textContent = "Google Sheets 연결 중...";
+  sheetStatus.className = "sheet-status";
+
+  return new Promise((resolve) => {
+    if (typeof google === "undefined" || !google.script || !google.script.run) {
+      sheetStatus.textContent = "⚠ Google Apps Script 환경에서 실행해주세요.";
+      sheetStatus.className = "sheet-status error";
+      resolve(false);
+      return;
+    }
+
+    google.script.run
+      .withSuccessHandler((data) => {
+        sheetData = data;
+        sheetStatus.textContent = `✓ Google Sheets 연결 완료 (${sheetData.length}명)`;
+        sheetStatus.className = "sheet-status ok";
+        resolve(true);
+      })
+      .withFailureHandler((err) => {
+        sheetData = [];
+        sheetStatus.textContent = "⚠ 연결 실패: " + err.message;
+        sheetStatus.className = "sheet-status error";
+        resolve(false);
+      })
+      .getHorseData();
+  });
+}
+loadSheet();
+
+start.onclick = async () => {
+  if (sheetData.length < participantCount) await loadSheet();
+  if (sheetData.length < participantCount) {
+    alert(`현재 유효한 데이터가 부족합니다.`);
+    return;
+  }
+  setup.classList.add("hidden");
+  race.classList.add("active");
+  prepareRace();
+};
+
+function pickRanking(candidates) {
+  let pool = [...candidates];
+  const ranking = [];
+  while (pool.length) {
+    const totalWeight = pool.reduce((sum, c) => sum + c.weight, 0);
+    let r = Math.random() * totalWeight;
+    let pickedIdx = pool.length - 1;
+    for (let i = 0; i < pool.length; i++) {
+      r -= pool[i].weight;
+      if (r <= 0) { pickedIdx = i; break; }
+    }
+    ranking.push(pool.splice(pickedIdx, 1)[0]);
+  }
+  return ranking;
+}
+
+/**
+ * 시간 조작 없이 시뮬레이션을 돌리고 결과를 스왑하는 함수
+ */
+function generateSimulatedProfiles(count) {
+  const steps = 300; 
+  const simulations = [];
+  
+  // 1. 기초 목표 시간 생성
+  const baseTimes = [];
+  baseTimes.push(40.0 + Math.random() * 1.0); 
+  baseTimes.push(89.0 + Math.random() * 1.0); 
+  for (let i = 0; i < count - 2; i++) {
+    baseTimes.push(41.0 + Math.random() * 48.0); 
+  }
+  baseTimes.sort((a, b) => a - b); 
+
+  // 2. 가상 주자 달리기
+  for (let i = 0; i < count; i++) {
+    const baseTargetTime = baseTimes[i];
+    
+    // 1/N 확률로 50% ~ 90% 사이에서 스킬 발동
+    const hasSkill = Math.random() < (1 / count);
+    const skillStart = hasSkill ? 0.5 + Math.random() * 0.35 : 999; 
+    const skillDuration = 0.05 + Math.random() * 0.1; 
+    const skillEnd = skillStart + skillDuration;
+    
+    // 스킬 발동 시 3~5배속 랜덤 가속
+    const skillMultiplier = hasSkill ? 3.0 + Math.random() * 2.0 : 1.0;
+
+    const rawSpeeds = [];
+    let integral = 0;
+    const phase = Math.random() * Math.PI * 2;
+    const freq = 10 + Math.random() * 10;
+    
+    for (let k = 1; k <= steps; k++) {
+      const u = k / steps;
+      let speed = 1.0 + Math.sin(u * freq + phase) * 0.4; 
+      rawSpeeds.push(speed);
+      integral += (1 / steps) / speed; 
+    }
+
+    const normFactor = baseTargetTime / integral;
+
+    let actualFinishTime = 0;
+    const times = [0]; 
+
+    // 시뮬레이션 질주
+    for (let k = 1; k <= steps; k++) {
+      const u = k / steps;
+      let speed = rawSpeeds[k - 1];
+      let multiplier = 1.0;
+      
+      // 스킬 구간에 돌입하면 폭발적인 가속
+      if (hasSkill && u >= skillStart && u <= skillEnd) {
+        multiplier = skillMultiplier; 
+      }
+      
+      const dt = ((1 / steps) / (speed * multiplier)) * normFactor;
+      actualFinishTime += dt;
+      times.push(actualFinishTime);
+    }
+
+    simulations.push({
+      simId: i,
+      baseTime: baseTargetTime,
+      actualFinishTime: actualFinishTime, 
+      times: times,
+      hasSkill: hasSkill,
+      skillMultiplier: skillMultiplier
+    });
+  }
+
+  // 3. 스킬로 인해 뒤바뀐 "실제 도착 시간"을 기준으로 다시 오름차순 정렬
+  simulations.sort((a, b) => a.actualFinishTime - b.actualFinishTime);
+
+  return simulations;
+}
+
+function prepareRace() {
+  raceRunning = false;
+  confirmBtn.disabled = false;
+  raceTimer.textContent = "00:00.00";
+  result.classList.remove("show");
+
+  racers = [];
+  lanes.innerHTML = "";
+  horseLayer.innerHTML = "";
+
+  const selected = sheetData.slice(0, participantCount);
+
+  // 1. 진짜 말 목표 등수 추첨
+  const rankedData = pickRanking(selected);
+
+  // 2. 가상 시뮬레이션 및 도착 시간순 정렬
+  const simProfiles = generateSimulatedProfiles(participantCount);
+
+  // 3. 기가 막힌 스왑(바꿔치기)
+  const plannedHorses = rankedData.map((data, rankIdx) => ({
+    ...data,
+    rank: rankIdx + 1,
+    profile: simProfiles[rankIdx] 
+  }));
+
+  const laneHeight = 100 / participantCount;
+  selected.forEach((data, index) => {
+    const planned = plannedHorses.find(p => p.number === data.number);
+
+    const row = document.createElement("div");
+    row.className = "horse-row";
+    row.style.top = `${index * laneHeight + laneHeight / 2}%`;
+
+    const wrap = document.createElement("div");
+    wrap.className = "horse-wrap";
+
+    const img = document.createElement("img");
+    img.className = "horse-img";
+    img.src = HORSE_IMAGE;
+
+    const badge = document.createElement("div");
+    badge.className = "number-badge";
+    badge.textContent = data.number;
+
+    wrap.appendChild(img);
+    wrap.appendChild(badge);
+    row.appendChild(wrap);
+    horseLayer.appendChild(row);
+
+    racers.push({
+      number: data.number,
+      weight: data.weight,
+      finalRank: planned.rank,
+      profile: planned.profile, 
+      row: row,
+      wrap: wrap,
+      img: img,
+      distance: 0,
+      finished: false,
+      leftScreen: false,
+      finishTime: 0,
+      lastIdx: 0, 
+      laneTopPercent: index * laneHeight + laneHeight / 2,
+      phase: Math.random() * Math.PI * 2
+    });
+
+    if (index > 0) {
+      const line = document.createElement("div");
+      line.className = "lane-line";
+      line.style.top = `${index * laneHeight}%`;
+      lanes.appendChild(line);
+    }
+  });
+
+  updateTicker();
+}
+
+confirmBtn.onclick = async () => {
+  if (raceRunning) return;
+  raceRunning = true;
+  confirmBtn.disabled = true;
+
+  await runCountdown();
+  startRace();
+};
+
+function runCountdown() {
+  return new Promise(resolve => {
+    countdown.classList.add("show");
+    const seq = ["3", "2", "1", "START!"];
+    let i = 0;
+    function tick() {
+      countdownText.textContent = seq[i];
+      countdownText.style.animation = "none";
+      void countdownText.offsetWidth;
+      countdownText.style.animation = "pop .7s ease";
+      i++;
+      if (i < seq.length) setTimeout(tick, 700);
+      else {
+        setTimeout(() => {
+          countdown.classList.remove("show");
+          resolve();
+        }, 500);
+      }
+    }
+    tick();
+  });
+}
+
+function startRace() {
+  raceStartTime = performance.now();
+  animationFrame = requestAnimationFrame(raceLoop);
+}
+
+function raceLoop(now) {
+  const elapsedSec = (now - raceStartTime) / 1000;
+
+  const mins = Math.floor(elapsedSec / 60);
+  const secs = Math.floor(elapsedSec % 60);
+  const ms = Math.floor((elapsedSec % 1) * 100);
+  raceTimer.textContent = `${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}.${String(ms).padStart(2,'0')}`;
+
+  let allLeftScreen = true;
+  const steps = 300;
+
+  racers.forEach((racer) => {
+    const times = racer.profile.times;
+
+    if (!racer.finished) {
+      if (elapsedSec >= racer.profile.actualFinishTime) {
+        racer.finished = true;
+        racer.finishTime = elapsedSec;
+        racer.distance = 1.0;
+        createFinishStandBadge(racer);
+      } else {
+        let idx = racer.lastIdx;
+        while (idx < steps && times[idx + 1] <= elapsedSec) {
+          idx++;
+        }
+        racer.lastIdx = idx;
+
+        const t0 = times[idx];
+        const t1 = times[idx + 1];
+        const fraction = (elapsedSec - t0) / (t1 - t0);
+        
+        racer.distance = (idx + fraction) / steps;
+      }
+    } else {
+      const postFinishTime = elapsedSec - racer.finishTime;
+      racer.distance = 1.0 + postFinishTime * 0.45;
+
+      if (racer.distance > 1.6) {
+        racer.leftScreen = true;
+        racer.wrap.style.display = "none";
+      }
+    }
+
+    if (!racer.leftScreen) {
+      allLeftScreen = false;
+      const trackWidth = racer.row.clientWidth;
+      racer.wrap.style.left = `${racer.distance * trackWidth}px`;
+
+      const bob = Math.sin(now * 0.025 + racer.phase) * 3;
+      racer.img.style.transform = `translateY(${bob}px)`;
+    }
+  });
+
+  updateTicker();
+
+  if (!allLeftScreen) {
+    animationFrame = requestAnimationFrame(raceLoop);
+  } else {
+    setTimeout(showFinalResult, 800);
+  }
+}
+
+function createFinishStandBadge(racer) {
+  const badge = document.createElement("div");
+  badge.className = "finish-stand-badge";
+  badge.style.top = `${racer.laneTopPercent}%`;
+  badge.textContent = racer.number;
+  stadium.querySelector(".track").appendChild(badge);
+}
+
+function updateTicker() {
+  const sorted = [...racers].sort((a, b) => {
+    if (a.finished && b.finished) return a.finishTime - b.finishTime;
+    if (a.finished) return -1;
+    if (b.finished) return 1;
+    return b.distance - a.distance;
+  });
+
+  rankBadges.innerHTML = "";
+  sorted.forEach((racer, idx) => {
+    const tag = document.createElement("div");
+    tag.className = "rank-tag";
+    tag.innerHTML = `<span>${idx + 1}위</span> ${racer.number}번`;
+    rankBadges.appendChild(tag);
+  });
+}
+
+function showFinalResult() {
+  raceRunning = false;
+  const sorted = [...racers].sort((a, b) => a.finishTime - b.finishTime);
+  resultList.innerHTML = "";
+
+  sorted.forEach((racer, idx) => {
+    const item = document.createElement("div");
+    item.className = "result-item";
+    const rankClass = idx === 0 ? "r1" : idx === 1 ? "r2" : idx === 2 ? "r3" : "";
+
+    const mins = Math.floor(racer.finishTime / 60);
+    const secs = (racer.finishTime % 60).toFixed(2);
+
+    item.innerHTML = `
+      <div class="result-rank ${rankClass}">${idx + 1}</div>
+      <div class="result-number">${racer.number}번 말</div>
+      <div class="result-time">${mins > 0 ? mins + '분 ' : ''}${secs}초</div>
+    `;
+    resultList.appendChild(item);
+  });
+
+  result.classList.add("show");
+}
+
+again.onclick = () => {
+  document.querySelectorAll(".finish-stand-badge").forEach(el => el.remove());
+  result.classList.remove("show");
+  prepareRace();
+};
+
+backSetup.onclick = () => {
+  if (animationFrame) cancelAnimationFrame(animationFrame);
+  document.querySelectorAll(".finish-stand-badge").forEach(el => el.remove());
+  result.classList.remove("show");
+  race.classList.remove("active");
+  setup.classList.remove("hidden");
+  raceRunning = false;
+};
+</script>
+</body>
+</html>
