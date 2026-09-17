@@ -31,6 +31,7 @@ button{border:0;font:inherit;cursor:pointer}
 
 /* ================= SETUP ================= */
 #setup{
+  position:relative; /* 절대 위치 버튼 배치를 위함 */
   min-height:100vh;
   display:flex;
   align-items:center;
@@ -69,6 +70,30 @@ button{border:0;font:inherit;cursor:pointer}
 .sheet-status.ok{color:#69df91}
 .sheet-status.error{color:#ff7070}
 
+/* 전체화면 버튼 공통 스타일 */
+.fullscreen-btn {
+  background:#2b3547;
+  color:#fff;
+  padding:8px 12px;
+  border-radius:8px;
+  font-size:13px;
+  font-weight:700;
+  display:flex;
+  align-items:center;
+  gap:4px;
+  box-shadow:0 4px 12px rgba(0,0,0,.3);
+  transition: .15s;
+}
+.fullscreen-btn:hover { background:#3c4a61; }
+
+/* 셋업 화면용 전체화면 버튼 */
+.setup-fs-btn {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 50;
+}
+
 /* ================= RACE ================= */
 #race{
   display:none;
@@ -102,19 +127,13 @@ button{border:0;font:inherit;cursor:pointer}
 #raceTimer{font-family:monospace;font-size:18px;color:var(--gold);font-weight:700}
 .top-confirm { display:none; }
 
-/* 전체화면 버튼 스타일 */
-.fullscreen-btn {
-  background:#2b3547;
-  color:#fff;
+/* 레이스 화면용 전체화면 버튼 */
+.race-fs-btn {
   padding:6px 10px;
-  border-radius:6px;
   font-size:12px;
-  font-weight:700;
-  display:flex;
-  align-items:center;
-  gap:4px;
+  border-radius:6px;
+  box-shadow:none;
 }
-.fullscreen-btn:hover { background:#3c4a61; }
 
 .rank-strip{
   height:42px;
@@ -320,7 +339,7 @@ button{border:0;font:inherit;cursor:pointer}
     position: absolute;
     top: 0;
     left: 130px; 
-    right: 200px; /* 아이콘과 버튼 공간 확보 */
+    right: 175px; 
     height: 45px;
     background: transparent;
     border: none;
@@ -349,6 +368,9 @@ button{border:0;font:inherit;cursor:pointer}
 <body>
 
 <section id="setup">
+  <!-- 입장 전 화면 전체화면 버튼 -->
+  <button id="setupFullscreenBtn" class="fullscreen-btn setup-fs-btn">🔲 화면 확대</button>
+  
   <div class="setup-card">
     <div style="font-size:50px">🏇</div>
     <h1>HORSE RACE</h1>
@@ -374,8 +396,8 @@ button{border:0;font:inherit;cursor:pointer}
     
     <div class="topbar-right">
       <div id="raceTimer">00:00.00</div>
-      <!-- 추가된 전체화면 버튼 -->
-      <button id="fullscreenBtn" class="fullscreen-btn">🔲 확대</button>
+      <!-- 레이스 화면 전체화면 버튼 -->
+      <button id="raceFullscreenBtn" class="fullscreen-btn race-fs-btn">🔲 확대</button>
       <button class="top-confirm confirm-btn">🔔 시작</button>
     </div>
   </header>
@@ -423,7 +445,8 @@ const start = document.getElementById("start");
 const sheetStatus = document.getElementById("sheetStatus");
 
 const confirmBtns = document.querySelectorAll(".confirm-btn");
-const fullscreenBtn = document.getElementById("fullscreenBtn");
+const setupFsBtn = document.getElementById("setupFullscreenBtn");
+const raceFsBtn = document.getElementById("raceFullscreenBtn");
 
 const stadium = document.getElementById("stadium");
 const lanes = document.getElementById("lanes");
@@ -445,45 +468,36 @@ let raceStartTime = 0;
 let animationFrame = null;
 
 // ================= 전체화면 및 가로모드 로직 =================
-fullscreenBtn.addEventListener("click", async () => {
+async function toggleFullscreen() {
   const doc = document.documentElement;
 
   if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-    // 1. 전체화면 진입 시도
     try {
-      if (doc.requestFullscreen) {
-        await doc.requestFullscreen();
-      } else if (doc.webkitRequestFullscreen) { // Safari
-        await doc.webkitRequestFullscreen();
-      }
+      if (doc.requestFullscreen) await doc.requestFullscreen();
+      else if (doc.webkitRequestFullscreen) await doc.webkitRequestFullscreen();
       
-      // 2. 가로모드 강제 회전 시도 (전체화면이 된 이후에만 작동함)
       if (screen.orientation && screen.orientation.lock) {
         await screen.orientation.lock("landscape");
       }
     } catch (err) {
-      console.warn("전체화면/가로모드 전환이 이 브라우저에서는 지원되지 않거나 차단되었습니다.", err);
+      console.warn("전체화면 전환 차단됨", err);
     }
   } else {
-    // 전체화면 해제
-    if (document.exitFullscreen) {
-      document.exitFullscreen();
-    } else if (document.webkitExitFullscreen) { // Safari
-      document.webkitExitFullscreen();
-    }
+    if (document.exitFullscreen) document.exitFullscreen();
+    else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
   }
-});
+}
 
-// 전체화면 상태 변경 시 버튼 텍스트 변경
+setupFsBtn.addEventListener("click", toggleFullscreen);
+raceFsBtn.addEventListener("click", toggleFullscreen);
+
 function handleFullscreenChange() {
-  if (document.fullscreenElement || document.webkitFullscreenElement) {
-    fullscreenBtn.innerHTML = "✖ 축소";
-  } else {
-    fullscreenBtn.innerHTML = "🔲 확대";
-    // 화면 회전 잠금 풀기
-    if (screen.orientation && screen.orientation.unlock) {
-      screen.orientation.unlock();
-    }
+  const isFs = document.fullscreenElement || document.webkitFullscreenElement;
+  setupFsBtn.innerHTML = isFs ? "✖ 화면 축소" : "🔲 화면 확대";
+  raceFsBtn.innerHTML = isFs ? "✖ 축소" : "🔲 확대";
+  
+  if (!isFs && screen.orientation && screen.orientation.unlock) {
+    screen.orientation.unlock();
   }
 }
 document.addEventListener("fullscreenchange", handleFullscreenChange);
@@ -650,13 +664,19 @@ function prepareRace() {
     profile: simProfiles[rankIdx] 
   }));
 
-  const laneHeight = 100 / participantCount;
+  // 1번 말이 위쪽 상단바에 가려지지 않도록 트랙 위아래 여백 확보
+  const topMargin = 12; // 상단 여백 12%
+  const bottomMargin = 5; // 하단 여백 5%
+  const usableHeight = 100 - topMargin - bottomMargin;
+  const laneHeight = usableHeight / participantCount;
+
   selected.forEach((data, index) => {
     const planned = plannedHorses.find(p => p.number === data.number);
+    const laneTopPercent = topMargin + (index * laneHeight) + (laneHeight / 2);
 
     const row = document.createElement("div");
     row.className = "horse-row";
-    row.style.top = `${index * laneHeight + laneHeight / 2}%`;
+    row.style.top = `${laneTopPercent}%`;
 
     const wrap = document.createElement("div");
     wrap.className = "horse-wrap";
@@ -692,14 +712,14 @@ function prepareRace() {
       leftScreen: false,
       finishTime: 0,
       lastIdx: 0, 
-      laneTopPercent: index * laneHeight + laneHeight / 2,
+      laneTopPercent: laneTopPercent,
       phase: Math.random() * Math.PI * 2
     });
 
     if (index > 0) {
       const line = document.createElement("div");
       line.className = "lane-line";
-      line.style.top = `${index * laneHeight}%`;
+      line.style.top = `${topMargin + index * laneHeight}%`;
       lanes.appendChild(line);
     }
   });
@@ -866,7 +886,6 @@ backSetup.onclick = () => {
   setup.classList.remove("hidden");
   raceRunning = false;
   
-  // 메인 화면으로 돌아갈 때 전체화면 해제
   if (document.fullscreenElement || document.webkitFullscreenElement) {
     if (document.exitFullscreen) document.exitFullscreen();
     else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
