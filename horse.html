@@ -278,7 +278,7 @@ button{border:0;font:inherit;cursor:pointer}
       <button id="plus">＋</button>
     </div>
     <button id="start" class="main-button">경주장 입장</button>
-    <div id="sheetStatus" class="sheet-status">데이터를 불러오는 중...</div>
+    <div id="sheetStatus" class="sheet-status">연결 ...</div>
   </div>
 </section>
 
@@ -362,14 +362,14 @@ plus.onclick = () => {
   countEl.textContent = participantCount;
 };
 
+// 네가 배포한 웹 앱 URL (그대로 유지)
 const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzTRkSxMDsZUuYMlobD6eR3BWl9k-X63Qob9NMeJImbfh3N2CswYQ9oTvlMS2z07n4c/exec";
 
 async function loadSheet() {
-  sheetStatus.textContent = "Google Sheets 연결 중...";
+  sheetStatus.textContent = "연결 중...";
   sheetStatus.className = "sheet-status";
 
   try {
-    // URL 뒤에 타임스탬프를 붙여서 캐싱(이전 데이터 불러오는 현상) 방지
     const response = await fetch(APPS_SCRIPT_URL + "?t=" + Date.now());
     
     if (!response.ok) {
@@ -383,7 +383,7 @@ async function loadSheet() {
     }
 
     sheetData = resData.data;
-    sheetStatus.textContent = `✓ Google Sheets 연결 완료 (${sheetData.length}명)`;
+    sheetStatus.textContent = "✓ 연결 완료";
     sheetStatus.className = "sheet-status ok";
     return true;
 
