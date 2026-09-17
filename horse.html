@@ -76,6 +76,7 @@ button{border:0;font:inherit;cursor:pointer}
   height:100vh;
   flex-direction:column;
   background:#0d1118;
+  position:relative; /* 가로모드 시 rank-strip 절대위치 배치를 위함 */
 }
 #race.active{display:flex}
 
@@ -90,8 +91,16 @@ button{border:0;font:inherit;cursor:pointer}
   border-bottom:1px solid rgba(255,255,255,.08);
   z-index:50;
 }
-.brand{font-size:18px;font-weight:900}
+.brand{font-size:18px;font-weight:900;white-space:nowrap;}
+
+.topbar-right {
+  display:flex;
+  align-items:center;
+  gap:15px;
+  white-space:nowrap;
+}
 #raceTimer{font-family:monospace;font-size:18px;color:var(--gold);font-weight:700}
+.top-confirm { display:none; } /* 기본모드에서는 상단 시작버튼 숨김 */
 
 .rank-strip{
   height:42px;
@@ -224,16 +233,18 @@ button{border:0;font:inherit;cursor:pointer}
   background:#121823;
   border-top:1px solid rgba(255,255,255,.08);
 }
-#confirm{
+.confirm-btn{
+  background:linear-gradient(135deg,#ffe066,#ffab21);
+  color:#17130b;
+  font-weight:900;
+}
+.bottom-confirm{
   width:min(380px,90%);
   padding:15px;
   border-radius:12px;
-  background:linear-gradient(135deg,#ffe066,#ffab21);
-  color:#17130b;
   font-size:16px;
-  font-weight:900;
 }
-#confirm:disabled{opacity:.5;cursor:not-allowed}
+.confirm-btn:disabled{opacity:.5;cursor:not-allowed}
 
 /* ================= RESULT ================= */
 #result{
@@ -274,6 +285,58 @@ button{border:0;font:inherit;cursor:pointer}
   animation:pop .7s ease;
 }
 @keyframes pop{0%{transform:scale(1.5);opacity:0} 40%{opacity:1} 100%{transform:scale(1);opacity:1}}
+
+
+/* ================= 가로모드/모바일 최적화 (가로폭 또는 세로높이 한정) ================= */
+@media (max-width: 950px) and (orientation: landscape), (max-height: 600px) {
+  /* 셋업 화면 반응형 */
+  .setup-card { padding: 20px; max-height: 95vh; overflow-y: auto; }
+  .setup-card h1 { font-size: 26px; }
+  .count-control { margin: 15px 0; }
+  #count { font-size: 40px; }
+  
+  /* 메인 UI: 하단부 통째로 없애고 상단에 모든 기능 압축 */
+  .bottom { display: none; }
+  
+  .topbar {
+    height: 45px;
+    padding: 0 10px;
+  }
+  .brand { font-size: 14px; position: relative; z-index: 60; }
+  
+  .topbar-right { gap: 8px; position: relative; z-index: 60; }
+  #raceTimer { font-size: 14px; }
+  
+  /* 랭크 스트립을 상단바 중앙으로 올려붙이기 */
+  .rank-strip {
+    position: absolute;
+    top: 0;
+    left: 130px;  /* 로고 영역 비우기 */
+    right: 155px; /* 타이머+버튼 영역 비우기 */
+    height: 45px;
+    background: transparent;
+    border: none;
+    padding: 0;
+    z-index: 55;
+  }
+  .rank-strip-title { padding-right: 5px; font-size: 10px; }
+  
+  /* 우상단 경주 시작 버튼 활성화 */
+  .top-confirm {
+    display: block;
+    padding: 5px 12px;
+    font-size: 12px;
+    border-radius: 6px;
+  }
+  
+  /* 결과창 반응형 */
+  .result-card { padding: 15px; max-height: 95vh; display: flex; flex-direction: column; }
+  .result-card h2 { font-size: 20px; margin: 10px 0; }
+  #resultList { flex: 1; overflow-y: auto; }
+  .result-item { padding: 6px 12px; margin: 4px 0; }
+  .result-actions { margin-top: 10px; }
+  .result-actions button { padding: 8px; font-size: 14px; }
+}
 </style>
 </head>
 
@@ -297,13 +360,19 @@ button{border:0;font:inherit;cursor:pointer}
 <section id="race">
   <header class="topbar">
     <div class="brand">🏇 HORSE RACE</div>
-    <div id="raceTimer">00:00.00</div>
+    
+    <!-- 실시간 랭크 (가로모드 시 상단 중앙으로 겹쳐서 이동됨) -->
+    <div class="rank-strip">
+      <div class="rank-strip-title">LIVE RANK</div>
+      <div id="rankBadges" class="rank-badges"></div>
+    </div>
+    
+    <div class="topbar-right">
+      <div id="raceTimer">00:00.00</div>
+      <!-- 스마트폰 가로모드 전용 상단 시작 버튼 -->
+      <button class="top-confirm confirm-btn">🔔 시작</button>
+    </div>
   </header>
-
-  <div class="rank-strip">
-    <div class="rank-strip-title">LIVE RANK</div>
-    <div id="rankBadges" class="rank-badges"></div>
-  </div>
 
   <main id="stadium">
     <div class="track">
@@ -318,8 +387,9 @@ button{border:0;font:inherit;cursor:pointer}
     </div>
   </main>
 
+  <!-- 데스크탑/세로모드용 하단 시작 버튼 -->
   <footer class="bottom">
-    <button id="confirm">🔔 경주 시작</button>
+    <button class="bottom-confirm confirm-btn">🔔 경주 시작</button>
   </footer>
 </section>
 
@@ -346,7 +416,10 @@ const minus = document.getElementById("minus");
 const plus = document.getElementById("plus");
 const start = document.getElementById("start");
 const sheetStatus = document.getElementById("sheetStatus");
-const confirmBtn = document.getElementById("confirm");
+
+// 상단/하단 버튼 동시 제어를 위해 class로 선택
+const confirmBtns = document.querySelectorAll(".confirm-btn");
+
 const stadium = document.getElementById("stadium");
 const lanes = document.getElementById("lanes");
 const horseLayer = document.getElementById("horseLayer");
@@ -375,7 +448,6 @@ plus.onclick = () => {
   countEl.textContent = participantCount;
 };
 
-// 불필요한 텍스트 제거 및 깔끔한 연결 알림
 async function loadSheet() {
   sheetStatus.textContent = "연결 중...";
   sheetStatus.className = "sheet-status";
@@ -434,87 +506,65 @@ function pickRanking(candidates) {
   return ranking;
 }
 
-/**
- * 사전 시뮬레이션:
- * 1. 40~60초 기본계수 설정
- * 2. 포지션 지정 및 감가속 배율(0.6~3배), 전환 포인트(+-10% 난수) 적용
- * 3. 50% 확률 스킬 발동 (50~90% 구간, 3~5배속)
- */
 function generateSimulatedProfiles(count) {
   const steps = 300; 
   const simulations = [];
   const styles = ["도주", "선행", "선입", "추입"];
   
   for (let i = 0; i < count; i++) {
-    // 1. 기본 도착 시간 (정속 주행 시 40초 ~ 60초)
     const baseTime = 20.0 + Math.random() * 20.0; 
     const baseSpeed = 1.0 / baseTime; 
-    
-    // 2. 랜덤 포지션 배정
     const style = styles[Math.floor(Math.random() * styles.length)];
-    
-    // ±10% (-0.1 ~ +0.1) 난수 발생기
     const shift = () => (Math.random() * 0.2 - 0.1);
     
     let p1, p2;
     let skillMin, skillMax, skillLen;
     
-    // 포지션별 구간 및 스킬 발동 확률 셋업
     if (style === "도주") {
-      p1 = Math.max(0.1, Math.min(0.9, 0.6 + shift())); // 가속 -> 감속 전환점
-      skillMin = 0.50; skillMax = 0.70; skillLen = 0.05 + Math.random() * 0.05; // 50~70% 사이 발동
+      p1 = Math.max(0.1, Math.min(0.9, 0.6 + shift()));
+      skillMin = 0.50; skillMax = 0.70; skillLen = 0.05 + Math.random() * 0.05;
     } else if (style === "선행") {
       p1 = Math.max(0.1, Math.min(0.9, 0.4 + shift()));
       p2 = Math.max(0.1, Math.min(0.9, 0.8 + shift()));
-      skillMin = 0.55; skillMax = 0.80; skillLen = 0.06 + Math.random() * 0.06; // 55~80% 사이 발동
+      skillMin = 0.55; skillMax = 0.80; skillLen = 0.06 + Math.random() * 0.06;
     } else if (style === "선입") {
       p1 = Math.max(0.1, Math.min(0.9, 0.5 + shift()));
-      skillMin = 0.65; skillMax = 0.85; skillLen = 0.08 + Math.random() * 0.06; // 65~85% 사이 발동
-    } else { // 추입
+      skillMin = 0.65; skillMax = 0.85; skillLen = 0.08 + Math.random() * 0.06;
+    } else {
       p1 = Math.max(0.1, Math.min(0.9, 0.7 + shift()));
-      skillMin = 0.75; skillMax = 0.90; skillLen = 0.08 + Math.random() * 0.05; // 75~90% 사이 극후반 발동
+      skillMin = 0.75; skillMax = 0.90; skillLen = 0.08 + Math.random() * 0.05;
     }
 
-    // 50% 확률로 스킬 터짐
     const hasSkill = Math.random() < 0.5;
     const skillStart = hasSkill ? skillMin + Math.random() * (skillMax - skillMin) : 999;
     const skillEnd = skillStart + skillLen;
-    
-    // 스킬 발동 시 3~5배속 랜덤 가속
     const skillMultiplier = hasSkill ? 3.0 + Math.random() * 2.0 : 1.0;
 
     let actualFinishTime = 0;
     const times = [0]; 
 
-    // 거리 단위(steps)로 주행 시뮬레이션 계산
     for (let k = 1; k <= steps; k++) {
       const u = k / steps;
       let posMul = 1.0;
       
-      // 포지션별 감가속 세팅 (0.6 ~ 3.0 배율 내)
       if (style === "도주") {
-        posMul = u < p1 ? (1.5 + Math.random() * 0.5) : (0.6 + Math.random() * 0.2); // 초반 1.5~2.0, 후반 0.6~0.8
+        posMul = u < p1 ? (1.5 + Math.random() * 0.5) : (0.6 + Math.random() * 0.2);
       } else if (style === "선행") {
         posMul = u < p1 ? (1.2 + Math.random() * 0.3) : (u < p2 ? 1.0 : (0.8 + Math.random() * 0.2)); 
       } else if (style === "선입") {
         posMul = u < p1 ? (0.8 + Math.random() * 0.2) : (1.6 + Math.random() * 0.4); 
-      } else { // 추입
-        posMul = u < p1 ? (0.6 + Math.random() * 0.2) : (2.5 + Math.random() * 0.5); // 초반 0.6~0.8, 후반 2.5~3.0
+      } else {
+        posMul = u < p1 ? (0.6 + Math.random() * 0.2) : (2.5 + Math.random() * 0.5);
       }
       
-      // 약간의 잔물결(노이즈) 추가
       posMul += Math.sin(u * 20 + i) * 0.1;
-      
-      // 범위 제한 (0.6 ~ 3.0)
       posMul = Math.max(0.6, Math.min(3.0, posMul));
 
-      // 스킬 3~5배 가속 덮어쓰기
       let finalMul = 1.0;
       if (hasSkill && u >= skillStart && u <= skillEnd) {
         finalMul = skillMultiplier; 
       }
       
-      // 순간 속도 계산 후 걸린 시간 적분
       const currentSpeed = baseSpeed * posMul * finalMul;
       const dt = (1 / steps) / currentSpeed;
       actualFinishTime += dt;
@@ -529,15 +579,18 @@ function generateSimulatedProfiles(count) {
     });
   }
 
-  // 3. 스킬과 난수, 포지션 배율로 뒤섞인 실제 도착 시간을 기준으로 정렬!
   simulations.sort((a, b) => a.actualFinishTime - b.actualFinishTime);
-
   return simulations;
+}
+
+// 모든 폼/버튼 비활성화 토글
+function setConfirmDisabled(disabled) {
+  confirmBtns.forEach(btn => btn.disabled = disabled);
 }
 
 function prepareRace() {
   raceRunning = false;
-  confirmBtn.disabled = false;
+  setConfirmDisabled(false);
   raceTimer.textContent = "00:00.00";
   result.classList.remove("show");
 
@@ -546,14 +599,9 @@ function prepareRace() {
   horseLayer.innerHTML = "";
 
   const selected = sheetData.slice(0, participantCount);
-
-  // 1. 진짜 말 목표 등수 추첨 (시트 가중치 기반)
   const rankedData = pickRanking(selected);
-
-  // 2. 가상 시뮬레이션 및 도착 시간순 정렬
   const simProfiles = generateSimulatedProfiles(participantCount);
 
-  // 3. 결과 매핑(스왑): 가중치 1등마에게 시뮬레이션 1위 데이터를 이식!
   const plannedHorses = rankedData.map((data, rankIdx) => ({
     ...data,
     rank: rankIdx + 1,
@@ -579,7 +627,6 @@ function prepareRace() {
     badge.className = "number-badge";
     badge.textContent = data.number;
 
-    // 포지션 배지 시각화
     const styleBadge = document.createElement("div");
     styleBadge.className = "style-badge";
     styleBadge.textContent = planned.profile.style;
@@ -618,14 +665,17 @@ function prepareRace() {
   updateTicker();
 }
 
-confirmBtn.onclick = async () => {
-  if (raceRunning) return;
-  raceRunning = true;
-  confirmBtn.disabled = true;
+// 상, 하단 버튼 어디를 눌러도 동일한 동작 실행
+confirmBtns.forEach(btn => {
+  btn.onclick = async () => {
+    if (raceRunning) return;
+    raceRunning = true;
+    setConfirmDisabled(true);
 
-  await runCountdown();
-  startRace();
-};
+    await runCountdown();
+    startRace();
+  };
+});
 
 function runCountdown() {
   return new Promise(resolve => {
