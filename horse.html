@@ -592,6 +592,8 @@ function generateSimulatedProfiles(count) {
       skillMin = 0.75; skillMax = 0.90; skillLen = 0.08 + Math.random() * 0.05;
     }
 
+    skillLen = skillLen * 3
+
     const hasSkill = Math.random() < 0.5;
     const skillStart = hasSkill ? skillMin + Math.random() * (skillMax - skillMin) : 999;
     const skillEnd = skillStart + skillLen;
