@@ -76,7 +76,7 @@ button{border:0;font:inherit;cursor:pointer}
   height:100vh;
   flex-direction:column;
   background:#0d1118;
-  position:relative; /* 가로모드 시 rank-strip 절대위치 배치를 위함 */
+  position:relative;
 }
 #race.active{display:flex}
 
@@ -96,11 +96,25 @@ button{border:0;font:inherit;cursor:pointer}
 .topbar-right {
   display:flex;
   align-items:center;
-  gap:15px;
+  gap:10px;
   white-space:nowrap;
 }
 #raceTimer{font-family:monospace;font-size:18px;color:var(--gold);font-weight:700}
-.top-confirm { display:none; } /* 기본모드에서는 상단 시작버튼 숨김 */
+.top-confirm { display:none; }
+
+/* 전체화면 버튼 스타일 */
+.fullscreen-btn {
+  background:#2b3547;
+  color:#fff;
+  padding:6px 10px;
+  border-radius:6px;
+  font-size:12px;
+  font-weight:700;
+  display:flex;
+  align-items:center;
+  gap:4px;
+}
+.fullscreen-btn:hover { background:#3c4a61; }
 
 .rank-strip{
   height:42px;
@@ -190,7 +204,6 @@ button{border:0;font:inherit;cursor:pointer}
   display:flex;align-items:center;justify-content:center;
   z-index:5;
 }
-/* 포지션 성향 배지 */
 .style-badge{
   position:absolute;left:18px;top:-8px;
   padding:2px 5px;
@@ -202,7 +215,6 @@ button{border:0;font:inherit;cursor:pointer}
   z-index:6;
   white-space:nowrap;
 }
-
 .finish-stand-badge{
   position:absolute;
   right:7%;
@@ -286,16 +298,13 @@ button{border:0;font:inherit;cursor:pointer}
 }
 @keyframes pop{0%{transform:scale(1.5);opacity:0} 40%{opacity:1} 100%{transform:scale(1);opacity:1}}
 
-
-/* ================= 가로모드/모바일 최적화 (가로폭 또는 세로높이 한정) ================= */
+/* ================= 가로모드/모바일 최적화 ================= */
 @media (max-width: 950px) and (orientation: landscape), (max-height: 600px) {
-  /* 셋업 화면 반응형 */
   .setup-card { padding: 20px; max-height: 95vh; overflow-y: auto; }
   .setup-card h1 { font-size: 26px; }
   .count-control { margin: 15px 0; }
   #count { font-size: 40px; }
   
-  /* 메인 UI: 하단부 통째로 없애고 상단에 모든 기능 압축 */
   .bottom { display: none; }
   
   .topbar {
@@ -307,12 +316,11 @@ button{border:0;font:inherit;cursor:pointer}
   .topbar-right { gap: 8px; position: relative; z-index: 60; }
   #raceTimer { font-size: 14px; }
   
-  /* 랭크 스트립을 상단바 중앙으로 올려붙이기 */
   .rank-strip {
     position: absolute;
     top: 0;
-    left: 130px;  /* 로고 영역 비우기 */
-    right: 155px; /* 타이머+버튼 영역 비우기 */
+    left: 130px; 
+    right: 200px; /* 아이콘과 버튼 공간 확보 */
     height: 45px;
     background: transparent;
     border: none;
@@ -321,7 +329,6 @@ button{border:0;font:inherit;cursor:pointer}
   }
   .rank-strip-title { padding-right: 5px; font-size: 10px; }
   
-  /* 우상단 경주 시작 버튼 활성화 */
   .top-confirm {
     display: block;
     padding: 5px 12px;
@@ -329,7 +336,6 @@ button{border:0;font:inherit;cursor:pointer}
     border-radius: 6px;
   }
   
-  /* 결과창 반응형 */
   .result-card { padding: 15px; max-height: 95vh; display: flex; flex-direction: column; }
   .result-card h2 { font-size: 20px; margin: 10px 0; }
   #resultList { flex: 1; overflow-y: auto; }
@@ -361,7 +367,6 @@ button{border:0;font:inherit;cursor:pointer}
   <header class="topbar">
     <div class="brand">🏇 HORSE RACE</div>
     
-    <!-- 실시간 랭크 (가로모드 시 상단 중앙으로 겹쳐서 이동됨) -->
     <div class="rank-strip">
       <div class="rank-strip-title">LIVE RANK</div>
       <div id="rankBadges" class="rank-badges"></div>
@@ -369,7 +374,8 @@ button{border:0;font:inherit;cursor:pointer}
     
     <div class="topbar-right">
       <div id="raceTimer">00:00.00</div>
-      <!-- 스마트폰 가로모드 전용 상단 시작 버튼 -->
+      <!-- 추가된 전체화면 버튼 -->
+      <button id="fullscreenBtn" class="fullscreen-btn">🔲 확대</button>
       <button class="top-confirm confirm-btn">🔔 시작</button>
     </div>
   </header>
@@ -387,7 +393,6 @@ button{border:0;font:inherit;cursor:pointer}
     </div>
   </main>
 
-  <!-- 데스크탑/세로모드용 하단 시작 버튼 -->
   <footer class="bottom">
     <button class="bottom-confirm confirm-btn">🔔 경주 시작</button>
   </footer>
@@ -417,8 +422,8 @@ const plus = document.getElementById("plus");
 const start = document.getElementById("start");
 const sheetStatus = document.getElementById("sheetStatus");
 
-// 상단/하단 버튼 동시 제어를 위해 class로 선택
 const confirmBtns = document.querySelectorAll(".confirm-btn");
+const fullscreenBtn = document.getElementById("fullscreenBtn");
 
 const stadium = document.getElementById("stadium");
 const lanes = document.getElementById("lanes");
@@ -439,6 +444,52 @@ let raceRunning = false;
 let raceStartTime = 0;
 let animationFrame = null;
 
+// ================= 전체화면 및 가로모드 로직 =================
+fullscreenBtn.addEventListener("click", async () => {
+  const doc = document.documentElement;
+
+  if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+    // 1. 전체화면 진입 시도
+    try {
+      if (doc.requestFullscreen) {
+        await doc.requestFullscreen();
+      } else if (doc.webkitRequestFullscreen) { // Safari
+        await doc.webkitRequestFullscreen();
+      }
+      
+      // 2. 가로모드 강제 회전 시도 (전체화면이 된 이후에만 작동함)
+      if (screen.orientation && screen.orientation.lock) {
+        await screen.orientation.lock("landscape");
+      }
+    } catch (err) {
+      console.warn("전체화면/가로모드 전환이 이 브라우저에서는 지원되지 않거나 차단되었습니다.", err);
+    }
+  } else {
+    // 전체화면 해제
+    if (document.exitFullscreen) {
+      document.exitFullscreen();
+    } else if (document.webkitExitFullscreen) { // Safari
+      document.webkitExitFullscreen();
+    }
+  }
+});
+
+// 전체화면 상태 변경 시 버튼 텍스트 변경
+function handleFullscreenChange() {
+  if (document.fullscreenElement || document.webkitFullscreenElement) {
+    fullscreenBtn.innerHTML = "✖ 축소";
+  } else {
+    fullscreenBtn.innerHTML = "🔲 확대";
+    // 화면 회전 잠금 풀기
+    if (screen.orientation && screen.orientation.unlock) {
+      screen.orientation.unlock();
+    }
+  }
+}
+document.addEventListener("fullscreenchange", handleFullscreenChange);
+document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
+
+// ================= 인원 증감 및 데이터 세팅 =================
 minus.onclick = () => {
   participantCount = Math.max(2, participantCount - 1);
   countEl.textContent = participantCount;
@@ -454,22 +505,14 @@ async function loadSheet() {
 
   try {
     const response = await fetch(APPS_SCRIPT_URL + "?t=" + Date.now());
-    
-    if (!response.ok) {
-      throw new Error(`HTTP 에러: ${response.status}`);
-    }
-
+    if (!response.ok) throw new Error(`HTTP 에러: ${response.status}`);
     const resData = await response.json();
-
-    if (!resData.success) {
-      throw new Error(resData.error);
-    }
+    if (!resData.success) throw new Error(resData.error);
 
     sheetData = resData.data;
     sheetStatus.textContent = "연결 완료";
     sheetStatus.className = "sheet-status ok";
     return true;
-
   } catch (err) {
     sheetData = [];
     sheetStatus.textContent = "연결 실패";
@@ -583,7 +626,6 @@ function generateSimulatedProfiles(count) {
   return simulations;
 }
 
-// 모든 폼/버튼 비활성화 토글
 function setConfirmDisabled(disabled) {
   confirmBtns.forEach(btn => btn.disabled = disabled);
 }
@@ -665,7 +707,6 @@ function prepareRace() {
   updateTicker();
 }
 
-// 상, 하단 버튼 어디를 눌러도 동일한 동작 실행
 confirmBtns.forEach(btn => {
   btn.onclick = async () => {
     if (raceRunning) return;
@@ -731,17 +772,14 @@ function raceLoop(now) {
           idx++;
         }
         racer.lastIdx = idx;
-
         const t0 = times[idx];
         const t1 = times[idx + 1];
         const fraction = (elapsedSec - t0) / (t1 - t0);
-        
         racer.distance = (idx + fraction) / steps;
       }
     } else {
       const postFinishTime = elapsedSec - racer.finishTime;
       racer.distance = 1.0 + postFinishTime * 0.45;
-
       if (racer.distance > 1.6) {
         racer.leftScreen = true;
         racer.wrap.style.display = "none";
@@ -752,7 +790,6 @@ function raceLoop(now) {
       allLeftScreen = false;
       const trackWidth = racer.row.clientWidth;
       racer.wrap.style.left = `${racer.distance * trackWidth}px`;
-
       const bob = Math.sin(now * 0.025 + racer.phase) * 3;
       racer.img.style.transform = `translateY(${bob}px)`;
     }
@@ -801,7 +838,6 @@ function showFinalResult() {
     const item = document.createElement("div");
     item.className = "result-item";
     const rankClass = idx === 0 ? "r1" : idx === 1 ? "r2" : idx === 2 ? "r3" : "";
-
     const mins = Math.floor(racer.finishTime / 60);
     const secs = (racer.finishTime % 60).toFixed(2);
 
@@ -829,6 +865,12 @@ backSetup.onclick = () => {
   race.classList.remove("active");
   setup.classList.remove("hidden");
   raceRunning = false;
+  
+  // 메인 화면으로 돌아갈 때 전체화면 해제
+  if (document.fullscreenElement || document.webkitFullscreenElement) {
+    if (document.exitFullscreen) document.exitFullscreen();
+    else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+  }
 };
 </script>
 </body>
